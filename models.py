@@ -41,6 +41,162 @@ class MockModel(torch.nn.Module):
         """
         return torch.randn((self.bs, self.n_steps, self.repr_dim)).to(self.device)
 
+class PatchEmbedding(nn.Module):
+    def __init__(self, in_channels=2, out_channels=8, kernel_size=4, stride=4):
+        super().__init__()
+        self.patch_embedding = nn.Conv2d(
+            in_channels=in_channels, # first channel is agent, second is border and walls
+            out_channels=out_channels, # image size is 64 x 64, and we want
+            kernel_size=kernel_size, # 4x4 patches
+            stride=stride # non-overlapping patches
+        )
+    
+    def forward(self, x):
+        x = self.patch_embedding(x)
+        x = x.flatten(2)
+        x = x.transpose(1, 2)
+
+        return x
+
+class MultiHeadSelfAttention(nn.Module):
+    def __init__(self, embed_dim, num_heads):
+        super(MultiHeadSelfAttention, self).__init__()
+
+        assert embed_dim % num_heads == 0, "Embedding dimension must be divisible by number of heads"
+
+        self.num_heads = num_heads
+        self.embed_dim = embed_dim
+        self.head_dim = embed_dim // num_heads
+
+        self.q_proj = nn.Linear(embed_dim, embed_dim)
+        self.k_proj = nn.Linear(embed_dim, embed_dim)
+        self.v_proj = nn.Linear(embed_dim, embed_dim)
+
+        self.out_proj = nn.Linear(embed_dim, embed_dim)
+
+        self.scale = self.head_dim ** -0.5
+    
+    def forward(self, x):
+        batch_size, seq_len, embed_dim = x.size()
+
+        Q = self.q_proj(x)
+        K = self.k_proj(x)
+        V = self.v_proj(x)
+
+        Q = Q.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
+        K = K.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
+        V = V.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
+
+        scores = torch.matmul(Q, K.transpose(-2, -1)) * self.scale
+        attention_weights = torch.softmax(scores, dim=-1)
+        attention_output = torch.matmul(attention_weights, V)
+
+        attention_output = attention_output.transpose(1, 2).contiguous()
+        attention_output = attention_output.view(batch_size, seq_len, embed_dim)
+
+        output = self.out_proj(attention_output)
+
+        return output
+
+class TransformerBlock(nn.Module):
+    def __init__(self, embed_dim, num_heads, mlp_dim, dropout):
+        super(TransformerBlock, self).__init__()
+
+        self.attention = MultiHeadSelfAttention(embed_dim, num_heads)
+        self.norm1 = nn.LayerNorm(embed_dim)
+        self.mlp = nn.Sequential(
+            nn.Linear(embed_dim, mlp_dim),
+            nn.ReLU(),
+            nn.Linear(mlp_dim, embed_dim)
+        )
+        self.norm2 = nn.LayerNorm(embed_dim)
+
+        self.dropout = nn.Dropout(dropout)
+    
+    def forward(self, x):
+        attention_output = self.attention(x)
+        x = self.norm1(x + self.dropout(attention_output))
+
+        mlp_output = self.mlp(x)
+        x = self.norm2(x + self.dropout(mlp_output))
+
+        return x
+
+class VisionTransformer(nn.Module):
+    def __init__(self, image_size, patch_size, in_channels, embed_dim, num_heads, mlp_dim, num_layers, num_classes, dropout=0.1):
+        super(VisionTransformer, self).__init__()
+
+        self.patch_embedding = PatchEmbedding(image_size, patch_size, in_channels, embed_dim)
+
+        num_patches = (image_size // patch_size) ** 2
+
+        self.cls_token = nn.Parameter(torch.randn(1, 1, embed_dim))
+
+        self.pos_embedding = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim))
+
+        self.transformer_blocks = nn.ModuleList([
+            TransformerBlock(embed_dim, num_heads, mlp_dim, dropout)
+            for _ in range(num_layers)
+        ])
+
+        self.mlp_head = nn.Sequential(
+            nn.LayerNorm(embed_dim),
+            nn.Linear(embed_dim, num_classes)
+        )
+
+    def forward(self, x):
+        x = self.patch_embedding(x)
+
+        batch_size = x.shape[0]
+        cls_tokens = self.cls_token.expand(batch_size, -1, -1)
+        x = torch.cat([cls_tokens, x], dim=1)
+
+        x = x + self.pos_embedding
+
+        for transformer_block in self.transformer_blocks:
+            x = transformer_block(x)
+        
+        cls_output = x[:, 0]
+        logits = self.mlp_head(cls_output)
+
+        return logits
+
+
+class JEPAEncoder(torch.nn.Module):
+    """
+    Does nothing. Just for testing.
+    """
+
+    def __init__(self, device="cuda", bs=64, n_steps=17, output_dim=256):
+        super().__init__()
+        self.device = device
+        self.bs = bs # batch size
+        self.n_steps = n_steps # number of forward passes
+        self.repr_dim = output_dim # encoder output dimension
+
+        # need to make sense later
+        self.encoder = VisionTransformer(
+            image_size=64,
+            patch_size=4,
+            in_channels=2,
+            embed_dim=256,
+            num_heads=8,
+            mlp_dim=512,
+            num_layers=6,
+            num_classes=256
+        )
+
+    def forward(self, states, actions):
+        """
+        Args:
+            states: [B, T, Ch, H, W]
+            actions: [B, T-1, 2]
+
+        Output:
+            predictions: [B, T, D]
+        """
+        return torch.randn((self.bs, self.n_steps, self.repr_dim)).to(self.device)
+
 
 class Prober(torch.nn.Module):
     def __init__(
