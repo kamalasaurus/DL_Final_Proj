@@ -1,13 +1,12 @@
 from typing import NamedTuple, Optional
 import torch
 import numpy as np
-
+from sklearn.model_selection import train_test_split
 
 class WallSample(NamedTuple):
     states: torch.Tensor
     locations: torch.Tensor
     actions: torch.Tensor
-
 
 class WallDataset:
     def __init__(
