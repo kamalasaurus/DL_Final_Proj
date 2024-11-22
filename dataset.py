@@ -1,7 +1,6 @@
 from typing import NamedTuple, Optional
 import torch
 import numpy as np
-from sklearn.model_selection import train_test_split
 
 class WallSample(NamedTuple):
     states: torch.Tensor
@@ -38,30 +37,6 @@ class WallDataset:
 
         return WallSample(states=states, locations=locations, actions=actions)
 
-class WallDatasetWithSplits(WallDataset):
-    "Assign indices to training dataset and generate splits for encoder training"
-    def __init__(self, data_path, split, device="cuda"):
-        super().__init__(data_path, device=device)
-        num_samples = len(self.states)
-        indices = np.arange(num_samples)
-
-        train_idx, test_idx = train_test_split(indices, test_size=0.2) # 80% train, 20% val and test
-        val_idx, test_idx = train_test_split(test_idx, test_size=0.5) # 10% val, 10% test
-
-        if split == "train":
-            self.indices = train_idx
-        elif split == "val":
-            self.indices = val_idx
-        elif split == "test":
-            self.indices = test_idx
-
-    def __len__(self):
-        return len(self.indices)
-
-    def __getitem__(self, i):
-        idx = self.indices[i]
-        return super().__getitem__(idx)
-
 def create_wall_dataloader(
     data_path,
     probing=False,
@@ -84,23 +59,3 @@ def create_wall_dataloader(
     )
 
     return loader
-
-def create_wall_encoder_dataloader(data_path, split, device="cuda", batch_size=64):
-    "For Enconder Only"
-    # Split: "train", "val", "test"
-
-    encoder_ds = WallDatasetWithSplits(
-        data_path, 
-        split, 
-        device=device,
-    )
-    
-    encoder_loader = torch.utils.data.DataLoader(
-        encoder_ds, 
-        batch_size=batch_size, 
-        shuffle=(split == "train"), 
-        drop_last=True, 
-        pin_memory=False,
-    )
-    
-    return encoder_loader
