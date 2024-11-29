@@ -1,0 +1,3 @@
+[submodule "vicreg"]
+	path = vicreg
+	url = https://github.com/facebookresearch/vicreg.git
