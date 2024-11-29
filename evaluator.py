@@ -112,8 +112,32 @@ class ProbingEvaluator:
             for batch in tqdm(dataset, desc="Probe prediction step"):
                 ################################################################################
                 # TODO: Forward pass through your model
+                
+                #1. non-recurrent
                 pred_encs = model(states=batch.states, actions=batch.actions)
                 pred_encs = pred_encs.transpose(0, 1)  # # BS, T, D --> T, BS, D
+
+                # #2. recurrent - unrolling embeddings (uncomment this section and comment out other section as needed)
+                # pred_encs = []
+
+                # #generate first embedding
+                # embedding = model(
+                #     states=batch.states[:, 0],  
+                #     actions=batch.actions[:, 0],  
+                #     hidden_state=None  #make sure to code for this scenario in RecurrentJEPA
+                # )
+                # pred_encs.append(embedding)
+                
+                # #recurrently generate embeddings for subsequent time steps
+                # for t in range(1, batch.states.size(1)):
+                #     embedding = model(
+                #         states=batch.states[:, t],  
+                #         actions=batch.actions[:, t],  
+                #         hidden_state=embedding 
+                #     )
+                #     pred_encs.append(embedding)
+
+                # pred_encs = torch.stack(pred_encs, dim=0)  
 
                 # Make sure pred_encs has shape (T, BS, D) at this point
                 ################################################################################
@@ -209,9 +233,33 @@ class ProbingEvaluator:
         for idx, batch in enumerate(tqdm(val_ds, desc="Eval probe pred")):
             ################################################################################
             # TODO: Forward pass through your model
+
+            #1. non-recurrent
             pred_encs = model(states=batch.states, actions=batch.actions)
             # # BS, T, D --> T, BS, D
             pred_encs = pred_encs.transpose(0, 1)
+
+            # #2. recurrent - unrolling embeddings (uncomment this section and comment out other section as needed)
+            # pred_encs = []
+
+            # #generate first embedding
+            # embedding = model(
+            #     states=batch.states[:, 0],  
+            #     actions=batch.actions[:, 0],  
+            #     hidden_state=None  #make sure to code for this scenario in RecurrentJEPA
+            # )
+            # pred_encs.append(embedding)
+            
+            # #recurrently generate embeddings for subsequent time steps
+            # for t in range(1, batch.states.size(1)):
+            #     embedding = model(
+            #         states=batch.states[:, t],  
+            #         actions=batch.actions[:, t],  
+            #         hidden_state=embedding 
+            #     )
+            #     pred_encs.append(embedding)
+
+            # pred_encs = torch.stack(pred_encs, dim=0)  
 
             # Make sure pred_encs has shape (T, BS, D) at this point
             ################################################################################
