@@ -190,12 +190,15 @@ class VICReg(nn.Module):
             zero_init_residual=True
         )
         self.projector = Projector(args, self.embedding)
+        self.predictor = #TODO
 
     def forward(self, x, y):
         x = self.projector(self.backbone(x))
         y = self.projector(self.backbone(y))
 
-        repr_loss = F.mse_loss(x, y)
+        x_pred = self.predictor(x) #added to accomodate our architecture
+
+        repr_loss = F.mse_loss(x_pred, y)
 
         x = torch.cat(FullGatherLayer.apply(x), dim=0)
         y = torch.cat(FullGatherLayer.apply(y), dim=0)
