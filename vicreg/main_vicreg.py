@@ -4,7 +4,9 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
+# Adapted the original facebookresearch/vicreg code for our JEPA model
 
+import sys
 from pathlib import Path
 import argparse
 import json
@@ -18,19 +20,22 @@ import torch.nn.functional as F
 from torch import nn, optim
 import torch.distributed as dist
 import torchvision.datasets as datasets
+from dataset import create_wall_dataloader, WallDataset
+from models import *
 
 import augmentations as aug
 from distributed import init_distributed_mode
 
-import resnet
 
+parent_directory = Path(__file__).resolve().parent.parent
+sys.path.append(str(parent_directory))
 
 def get_arguments():
-    parser = argparse.ArgumentParser(description="Pretrain a resnet model with VICReg", add_help=False)
+    parser = argparse.ArgumentParser(description="Pretrain a JEPA model with VICReg", add_help=False)
 
     # Data
-    parser.add_argument("--data-dir", type=Path, default="/path/to/imagenet", required=True,
-                        help='Path to the image net dataset')
+    parser.add_argument("--data-dir", type=Path, required=True,
+                        help='Path to the dataset directory containing states.npy and actions.npy')
 
     # Checkpoints
     parser.add_argument("--exp-dir", type=Path, default="./exp",
@@ -39,7 +44,7 @@ def get_arguments():
                         help='Print logs to the stats.txt file every [log-freq-time] seconds')
 
     # Model
-    parser.add_argument("--arch", type=str, default="resnet50",
+    parser.add_argument("--arch", type=str, default="JEPAEncoder",
                         help='Architecture of the backbone encoder network')
     parser.add_argument("--mlp", default="8192-8192-8192",
                         help='Size and number of layers of the MLP expander head')
@@ -83,25 +88,20 @@ def main(args):
     print(args)
     gpu = torch.device(args.device)
 
+    train_loader = create_wall_dataloader(
+        data_path=args.data_dir,
+        probing=False,
+        device=args.device,
+        batch_size=args.batch_size,
+        train=True,
+    )
+
     if args.rank == 0:
         args.exp_dir.mkdir(parents=True, exist_ok=True)
         stats_file = open(args.exp_dir / "stats.txt", "a", buffering=1)
-        print(" ".join(sys.argv))
         print(" ".join(sys.argv), file=stats_file)
 
-    transforms = aug.TrainTransform()
-
-    dataset = datasets.ImageFolder(args.data_dir / "train", transforms)
-    sampler = torch.utils.data.distributed.DistributedSampler(dataset, shuffle=True)
-    assert args.batch_size % args.world_size == 0
-    per_device_batch_size = args.batch_size // args.world_size
-    loader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=per_device_batch_size,
-        num_workers=args.num_workers,
-        pin_memory=True,
-        sampler=sampler,
-    )
+    # transforms = aug.TrainTransform()
 
     model = VICReg(args).cuda(gpu)
     model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
@@ -126,17 +126,23 @@ def main(args):
 
     start_time = last_logging = time.time()
     scaler = torch.cuda.amp.GradScaler()
+    
     for epoch in range(start_epoch, args.epochs):
-        sampler.set_epoch(epoch)
-        for step, ((x, y), _) in enumerate(loader, start=epoch * len(loader)):
-            x = x.cuda(gpu, non_blocking=True)
-            y = y.cuda(gpu, non_blocking=True)
+        train_loader.sampler.set_epoch(epoch)
+        for step, batch in enumerate(train_loader, start=epoch * len(train_loader)):
+            states, actions = batch.states, batch.actions
+            next_states = states[:, 1:] 
+            states = states[:, :-1]      
 
-            lr = adjust_learning_rate(args, optimizer, loader, step)
+            states = states.to(args.device)
+            next_states = next_states.to(args.device)
+            actions = actions.to(args.device)
+
+            lr = adjust_learning_rate(args, optimizer, train_loader, step)
 
             optimizer.zero_grad()
             with torch.cuda.amp.autocast():
-                loss = model.forward(x, y)
+                loss = model.forward(states, next_states, actions)
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
@@ -161,7 +167,7 @@ def main(args):
             )
             torch.save(state, args.exp_dir / "model.pth")
     if args.rank == 0:
-        torch.save(model.module.backbone.state_dict(), args.exp_dir / "resnet50.pth")
+        torch.save(model.module.backbone.state_dict(), args.exp_dir / "JEPAEncoder.pth")
 
 
 def adjust_learning_rate(args, optimizer, loader, step):
@@ -186,17 +192,23 @@ class VICReg(nn.Module):
         super().__init__()
         self.args = args
         self.num_features = int(args.mlp.split("-")[-1])
-        self.backbone, self.embedding = resnet.__dict__[args.arch](
-            zero_init_residual=True
-        )
+        self.backbone = JEPAEncoder(device=args.device, output_dim=self.num_features) #replaced resnet w our encoder
         self.projector = Projector(args, self.embedding)
-        self.predictor = #TODO
+        self.predictor = JEPAPredictor(
+            embed_dim=self.num_features,
+            mlp_dim=128,
+            num_heads=8,
+            num_layers=4,
+            patch_size=4,
+            image_size=65  #our predictor
+        )
 
-    def forward(self, x, y):
+
+    def forward(self, x, y, actions):
         x = self.projector(self.backbone(x))
         y = self.projector(self.backbone(y))
 
-        x_pred = self.predictor(x) #added to accomodate our architecture
+        x_pred = self.predictor(x, actions) #added to accomodate our architecture
 
         repr_loss = F.mse_loss(x_pred, y)
 
