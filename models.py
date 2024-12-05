@@ -181,7 +181,7 @@ class JEPAEncoder(torch.nn.Module):
         return embeddings  
 
 class JEPAPredictor(nn.Module):
-    def __init__(self, embed_dim=256, mlp_dim=128, num_heads=8, num_layers=4, patch_size=4, image_size=65):
+    def __init__(self, embed_dim=8192, mlp_dim=128, num_heads=8, num_layers=4, patch_size=4, image_size=65):
         super().__init__()
         self.action_mlp = nn.Sequential(
             nn.Linear(2, mlp_dim),
@@ -210,7 +210,7 @@ class JEPAPredictor(nn.Module):
         return outputs
         
 class RecurrentJEPAPredictor(nn.Module):
-    def __init__(self, embed_dim=256, mlp_dim=128, num_heads=8, num_layers=4, patch_size=4, image_size=65):
+    def __init__(self, embed_dim=8192, mlp_dim=128, num_heads=8, num_layers=4, patch_size=4, image_size=65):
         super().__init__()
         self.action_mlp = nn.Sequential(
             nn.Linear(2, mlp_dim),
