@@ -1,3 +1,7 @@
+# JEPA training loop (Single Node - Local)
+```
+python -m torch.distributed.launch --nproc_per_node=8 main_vicreg.py --data-dir /content/data --exp-dir /content/data --arch JEPAEncoder --epochs 2 --batch-size 512 --base-lr 0.3
+```
 # CSCI-GA 2572 Final Project
 
 ## Overview
