@@ -19,16 +19,16 @@ import torch
 import torch.nn.functional as F
 from torch import nn, optim
 import torch.distributed as dist
-import torchvision.datasets as datasets
+
+parent_directory = Path(__file__).resolve().parent.parent
+sys.path.append(str(parent_directory))
+
 from dataset import create_wall_dataloader, WallDataset
 from models import *
 
 import augmentations as aug
 from distributed import init_distributed_mode
 
-
-parent_directory = Path(__file__).resolve().parent.parent
-sys.path.append(str(parent_directory))
 
 def get_arguments():
     parser = argparse.ArgumentParser(description="Pretrain a JEPA model with VICReg", add_help=False)
@@ -75,7 +75,7 @@ def get_arguments():
     # Distributed
     parser.add_argument('--world-size', default=1, type=int,
                         help='number of distributed processes')
-    parser.add_argument('--local_rank', default=-1, type=int)
+    parser.add_argument('--local-rank', default=-1, type=int)
     parser.add_argument('--dist-url', default='env://',
                         help='url used to set up distributed training')
 
