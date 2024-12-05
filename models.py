@@ -124,7 +124,7 @@ class TransformerBlock(nn.Module):
         return x
 
 class VisionTransformer(nn.Module):
-    def __init__(self, image_size, patch_size, in_channels, embed_dim, num_heads, mlp_dim, num_layers, num_classes, dropout=0.1):
+    def __init__(self, image_size, patch_size, in_channels, embed_dim, num_heads, mlp_dim, num_layers, dropout=0.1):
         super(VisionTransformer, self).__init__()
 
         self.patch_embedding = PatchEmbedding(image_size, patch_size, in_channels, embed_dim)
@@ -167,8 +167,7 @@ class JEPAEncoder(torch.nn.Module):
             embed_dim=256,
             num_heads=8,
             mlp_dim=512,
-            num_layers=6,
-            num_classes=256
+            num_layers=6
         )
 
     def forward(self, states, actions):
@@ -196,8 +195,7 @@ class JEPAPredictor(nn.Module):
             embed_dim=embed_dim,
             num_heads=num_heads,
             mlp_dim=mlp_dim,
-            num_layers=num_layers,
-            num_classes=embed_dim
+            num_layers=num_layers
         )
 
     def forward(self, embeddings, actions):
@@ -226,8 +224,7 @@ class RecurrentJEPAPredictor(nn.Module):
             embed_dim=embed_dim,
             num_heads=num_heads,
             mlp_dim=mlp_dim,
-            num_layers=num_layers,
-            num_classes=embed_dim
+            num_layers=num_layers
         )
 
     def forward(self, initial_embedding, actions):
