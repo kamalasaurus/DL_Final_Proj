@@ -192,7 +192,8 @@ class VICReg(nn.Module):
         super().__init__()
         self.args = args
         self.num_features = int(args.mlp.split("-")[-1])
-        self.backbone = JEPAEncoder(device=args.device, output_dim=self.num_features) #replaced resnet w our encoder
+        self.backbone = JEPAEncoder(device=args.device) #replaced resnet w our encoder
+        self.embedding = self.backbone.repr_dim
         self.projector = Projector(args, self.embedding)
         self.predictor = JEPAPredictor(
             embed_dim=self.num_features,
