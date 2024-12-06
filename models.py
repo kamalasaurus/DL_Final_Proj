@@ -170,7 +170,7 @@ class JEPAEncoder(torch.nn.Module):
             num_layers=6
         )
 
-    def forward(self, states, actions):
+    def forward(self, states):
         B, T, C, H, W = states.size()
         states = states.view(B * T, C, H, W)  
 
