@@ -28,6 +28,7 @@ from models import *
 
 import augmentations as aug
 from distributed import init_distributed_mode
+import torch.multiprocessing as mp 
 
 
 def get_arguments():
@@ -360,6 +361,7 @@ def handle_sigterm(signum, frame):
 
 
 if __name__ == "__main__":
+    mp.set_start_method('spawn', force=True)
     parser = argparse.ArgumentParser('VICReg training script', parents=[get_arguments()])
     args = parser.parse_args()
     main(args)
