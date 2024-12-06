@@ -88,12 +88,23 @@ def main(args):
     print(args)
     gpu = torch.device(args.device)
 
-    train_loader = create_wall_dataloader(
+    dataset = WallDataset(
         data_path=args.data_dir,
         probing=False,
         device=args.device,
-        batch_size=args.batch_size,
-        train=True,
+    )
+
+    sampler = torch.utils.data.distributed.DistributedSampler(
+        dataset, num_replicas=args.world_size, rank=args.rank, shuffle=True
+    )
+
+    train_loader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=args.batch_size // args.world_size,  
+        sampler=sampler,
+        num_workers=args.num_workers,
+        pin_memory=True,
+        drop_last=True,
     )
 
     if args.rank == 0:
