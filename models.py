@@ -201,7 +201,6 @@ class JEPAPredictor(nn.Module):
     def forward(self, embeddings, actions):
         B, T, D = embeddings.size()
         actions = self.action_mlp(actions)  
-        actions = torch.cat([torch.zeros(B, 1, D).to(actions.device), actions], dim=1)  
         
         inputs = embeddings + actions
         inputs = inputs.reshape(B * T, D, 1, 1) 
