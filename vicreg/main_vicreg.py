@@ -218,8 +218,16 @@ class VICReg(nn.Module):
 
 
     def forward(self, x, y, actions):
-        x = self.projector(self.backbone(x))
-        y = self.projector(self.backbone(y))
+        x = self.backbone(x)  
+        B, T, D = x.size()  
+        x = x.reshape(-1, D) 
+        x = self.projector(x)  
+        x = x.reshape(B, T, -1) 
+       
+        y = self.backbone(y)  
+        y = y.reshape(-1, D)  
+        y = self.projector(y)  
+        y = y.reshape(B, T, -1) 
 
         x_pred = self.predictor(x, actions) #added to accomodate our architecture
 
