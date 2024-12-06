@@ -104,7 +104,7 @@ def main(args):
         batch_size=args.batch_size // args.world_size,  
         sampler=sampler,
         num_workers=args.num_workers,
-        pin_memory=True,
+        pin_memory=False,
         drop_last=True,
     )
 
