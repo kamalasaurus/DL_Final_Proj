@@ -84,16 +84,16 @@ class MultiHeadSelfAttention(nn.Module):
         K = self.k_proj(x)
         V = self.v_proj(x)
 
-        Q = Q.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
-        K = K.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
-        V = V.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
+        Q = Q.reshape(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
+        K = K.reshape(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
+        V = V.reshape(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
 
         scores = torch.matmul(Q, K.transpose(-2, -1)) * self.scale
         attention_weights = torch.softmax(scores, dim=-1)
         attention_output = torch.matmul(attention_weights, V)
 
         attention_output = attention_output.transpose(1, 2).contiguous()
-        attention_output = attention_output.view(batch_size, seq_len, embed_dim)
+        attention_output = attention_output.reshape(batch_size, seq_len, embed_dim)
 
         output = self.out_proj(attention_output)
 
@@ -172,11 +172,11 @@ class JEPAEncoder(torch.nn.Module):
 
     def forward(self, states):
         B, T, C, H, W = states.size()
-        states = states.view(B * T, C, H, W)  
+        states = states.reshape(B * T, C, H, W)  
 
         embeddings = self.encoder(states)
         embeddings = embeddings.mean(dim=1) 
-        embeddings = embeddings.view(B, T, -1)  
+        embeddings = embeddings.reshape(B, T, -1)  
         
         return embeddings  
 
@@ -204,9 +204,9 @@ class JEPAPredictor(nn.Module):
         actions = torch.cat([torch.zeros(B, 1, D).to(actions.device), actions], dim=1)  
         
         inputs = embeddings + actions
-        inputs = inputs.view(B * T, D, 1, 1) 
+        inputs = inputs.reshape(B * T, D, 1, 1) 
         outputs = self.vit(inputs)
-        outputs = outputs.view(B, T, -1)
+        outputs = outputs.reshape(B, T, -1)
         return outputs
         
 class RecurrentJEPAPredictor(nn.Module):
@@ -239,7 +239,7 @@ class RecurrentJEPAPredictor(nn.Module):
         for t in range(T_minus_1):
             action = actions[:, t, :].unsqueeze(1) 
             input_to_vit = current_embedding + action  
-            current_embedding = self.vit(input_to_vit.view(B, D, 1, 1)).view(B, 1, -1) 
+            current_embedding = self.vit(input_to_vit.reshape(B, D, 1, 1)).reshape(B, 1, -1) 
             predicted_embeddings.append(current_embedding)
 
         predicted_embeddings = torch.cat(predicted_embeddings, dim=1) 
