@@ -196,7 +196,7 @@ class RecurrentJEPAPredictor(nn.Module):
 
         self.flatten = nn.Flatten()
 
-    def forward(self, initial_embedding, actions):
+    def forward(self, initial_embedding, actions,, flatten_for_prober=False):
         B, T, C, H, W = initial_embedding.size() 
         T_minus_1 = actions.size(1)
 
