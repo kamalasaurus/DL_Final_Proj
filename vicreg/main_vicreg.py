@@ -202,13 +202,13 @@ class VICReg(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
-        self.num_features = 64 
+        self.num_features = 256 
         self.backbone = JEPAEncoder(device=args.device) 
         self.predictor = RecurrentJEPAPredictor(
             in_channels=2,          
             embed_dim=self.num_features,
-            mlp_dim=128,            
-            cnn_channels=32          
+            mlp_dim=1024,            
+            cnn_channels=64          
         )
 
 

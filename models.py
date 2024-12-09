@@ -162,7 +162,7 @@ class JEPAEncoder(torch.nn.Module):
 
         self.encoder = VisionTransformer(
             image_size=65,
-            patch_size=13,
+            patch_size=4,
             in_channels=2,
             embed_dim=output_dim,
             num_heads=4,
