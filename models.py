@@ -142,6 +142,7 @@ class VisionTransformer(nn.Module):
 
     def forward(self, x):
         x = self.patch_embedding(x)
+        x = x.flatten(2).transpose(1, 2)
         x = x + self.pos_embedding
         x = self.dropout(x)
 
@@ -159,64 +160,67 @@ class JEPAEncoder(torch.nn.Module):
         self.n_steps = n_steps 
         self.repr_dim = output_dim 
 
-        # need to make sense later
         self.encoder = VisionTransformer(
             image_size=65,
-            patch_size=4,
+            patch_size=13,
             in_channels=2,
             embed_dim=output_dim,
-            num_heads=8,
+            num_heads=4,
             mlp_dim=512,
-            num_layers=6
+            num_layers=4
         )
 
     def forward(self, states):
         B, T, C, H, W = states.size()
         states = states.reshape(B * T, C, H, W)  
-
         embeddings = self.encoder(states)  
-        spatial_embeddings = embeddings.permute(0, 2, 1).reshape(B, T, C, H, W)  
+        num_patches = embeddings.size(1)
+        patch_dim = int(num_patches ** 0.5)
+        embeddings = embeddings.view(B, T, -1, patch_dim, patch_dim)  # [B, T, embed_dim, H', W']
         
-        return spatial_embeddings
+        return embeddings
 
 class RecurrentJEPAPredictor(nn.Module):
-    def __init__(self, in_channels=2, embed_dim=256, mlp_dim=128, cnn_channels=64):
+    def __init__(self, in_channels=2, embed_dim=256, mlp_dim=512, cnn_channels=64):
         super().__init__()
         self.action_mlp = nn.Sequential(
-            nn.Linear(2, mlp_dim),
+           nn.Linear(in_channels, mlp_dim),
             nn.ReLU(),
             nn.Linear(mlp_dim, embed_dim)
         )
 
         self.cnn = nn.Sequential(
-        nn.Conv2d(in_channels=in_channels, out_channels=cnn_channels, kernel_size=3, padding=1),
-        nn.ReLU(),
-        nn.Conv2d(in_channels=cnn_channels, out_channels=in_channels, kernel_size=3, padding=1)  
+            nn.Conv2d(in_channels=embed_dim + embed_dim, out_channels=cnn_channels, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=cnn_channels, out_channels=embed_dim, kernel_size=3, padding=1)  
         )
 
-        self.flatten = nn.Flatten()
-
-    def forward(self, initial_embedding, actions, flatten_for_prober=False):
-        B, T, C, H, W = initial_embedding.size() 
+    def forward(self, initial_embedding, actions):
+        print("initial_embedding:", initial_embedding.shape)
+        B, T, C, H, W = initial_embedding.size()  # [B, T, embed_dim, H, W]
         T_minus_1 = actions.size(1)
 
-        current_embedding = initial_embedding[:, 0] 
-        predicted_embeddings = [current_embedding]
+        current_embedding = initial_embedding[:, 0]  # [B, embed_dim, H, W]
+        predicted_embeddings = [current_embedding] 
 
-        actions = self.action_mlp(actions).reshape(B, T_minus_1, C, 1, 1)  
-        
+        actions = actions.view(-1, actions.size(-1))  # Flatten to [B * T_minus_1, action_dim]
+        actions = self.action_mlp(actions).reshape(B, T_minus_1, -1, 1, 1)  # Output [B, T_minus_1, embed_dim, 1, 1]
+
+        actions = actions.expand(-1, -1, -1, H, W)  # Shape: [B, T_minus_1, embed_dim, H, W]
+
         for t in range(T_minus_1):
             action = actions[:, t]  
-            input_to_cnn = current_embedding + action 
-            current_embedding = self.cnn(input_to_cnn)  
+            input_to_cnn = torch.cat((current_embedding, action), dim=1)  #Shape: [B, embed_dim + embed_dim, H, W]
+            print("Before CNN:", input_to_cnn.shape)
+            current_embedding = self.cnn(input_to_cnn)  #[B, embed_dim, H, W]
+            print("After CNN:", current_embedding.shape)
             predicted_embeddings.append(current_embedding)
 
-        predicted_embeddings = torch.stack(predicted_embeddings, dim=1) 
+        predicted_embeddings = torch.stack(predicted_embeddings, dim=1)  #[B, T, embed_dim, H, W]
+        predicted_embeddings = predicted_embeddings[:,1:]
 
-        if flatten_for_prober:
-       
-            return predicted_embeddings.view(B, T, -1)
-        return predicted_embeddings  
+        return predicted_embeddings.view(B, T, -1) 
+
 
 class Prober(torch.nn.Module):
     def __init__(

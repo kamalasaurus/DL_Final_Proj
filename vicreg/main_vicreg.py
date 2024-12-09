@@ -86,7 +86,6 @@ def get_arguments():
 def main(args):
     torch.backends.cudnn.benchmark = True
     init_distributed_mode(args)
-    print(args)
     gpu = torch.device(args.device)
 
     dataset = WallDataset(
@@ -203,38 +202,46 @@ class VICReg(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
-        self.num_features = int(args.mlp.split("-")[-1])
-        self.backbone = JEPAEncoder(device=args.device) #replaced resnet w our encoder
-        self.embedding = self.backbone.repr_dim
-        self.projector = Projector(args, self.embedding)
-        self.predictor = JEPAPredictor(
+        self.num_features = 64 
+        self.backbone = JEPAEncoder(device=args.device) 
+        self.predictor = RecurrentJEPAPredictor(
+            in_channels=2,          
             embed_dim=self.num_features,
-            mlp_dim=128,
-            num_heads=8,
-            num_layers=4,
-            patch_size=4,
-            image_size=65  #our predictor
+            mlp_dim=128,            
+            cnn_channels=32          
         )
 
 
     def forward(self, x, y, actions):
-        x = self.backbone(x)  
-        # B, T, D = x.size()  
-        # x = x.reshape(-1, D) 
-        # x = self.projector(x)  
-        # x = x.reshape(B, T, -1) 
-       
+        x = self.backbone(x) #[B, T-1, 2, H, W]
         y = self.backbone(y)  
-        # y = y.reshape(-1, D)  
-        # y = self.projector(y)  
-        # y = y.reshape(B, T, -1) 
+        print("x shape:", x.shape)
+        print("y shape:", y.shape)
 
-        x_pred = self.predictor(x, actions) #added to accomodate our architecture
+        x_pred = self.predictor(x, actions)
+        x_pred = x_pred[:, 1:] #[B, T-1, D]
+        y = y[:, 1:]  # [B, T-1, C, H, W]
+        print(f'x_pred:{x_pred.shape}')
+
+        B, T, C, H, W = y.shape
+        D = C * H * W
+        y = y.view(B, T, D)  # [B, T-1, D]
+        print(f'y:{y.shape}')
 
         repr_loss = F.mse_loss(x_pred, y)
 
+        x = x.contiguous()
+        y = y.contiguous()
+
         x = torch.cat(FullGatherLayer.apply(x), dim=0)
         y = torch.cat(FullGatherLayer.apply(y), dim=0)
+
+        B, T, C, H, W = x.shape
+        D = C * H * W
+        x = x.view(B, T, D)
+        # Since we did x_pred = x_pred[:, 1:] and y = y[:, 1:], do the same for x
+        x = x[:, 1:]  # [B, T-1, D] matching x_pred and y
+
         x = x - x.mean(dim=0)
         y = y - y.mean(dim=0)
 
@@ -242,8 +249,13 @@ class VICReg(nn.Module):
         std_y = torch.sqrt(y.var(dim=0) + 0.0001)
         std_loss = torch.mean(F.relu(1 - std_x)) / 2 + torch.mean(F.relu(1 - std_y)) / 2
 
-        cov_x = (x.T @ x) / (self.args.batch_size - 1)
-        cov_y = (y.T @ y) / (self.args.batch_size - 1)
+        B, T, D = x.shape
+        x = x.reshape(B * T, D)  
+        y = y.reshape(B * T, D)
+
+        N = x.shape[0] #B*T
+        cov_x = (x.T @ x) / (N - 1)
+        cov_y = (y.T @ y) / (N - 1)
         cov_loss = off_diagonal(cov_x).pow_(2).sum().div(
             self.num_features
         ) + off_diagonal(cov_y).pow_(2).sum().div(self.num_features)
