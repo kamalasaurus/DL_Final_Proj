@@ -7,24 +7,62 @@ from copy import deepcopy
 from tqdm import tqdm
 import time
 import matplotlib.pyplot as plt
+import random
+
 
 #########################
 # Dataset and Dataloader
 #########################
 
+
 class TrajectoryDataset(Dataset):
-    def __init__(self, states_path, actions_path):
+    def __init__(self, states_path, actions_path, augmentations=None):
+        """
+        Args:
+            states_path (str): Path to the states .npy file.
+            actions_path (str): Path to the actions .npy file.
+            augmentations (callable, optional): A function or transform to apply to the states and actions.
+        """
         self.states = np.load(states_path)  # shape (N, T, 2, 64, 64)
         self.actions = np.load(actions_path) # shape (N, T-1, 2)
         
         self.states = torch.tensor(self.states, dtype=torch.float32)
         self.actions = torch.tensor(self.actions, dtype=torch.float32)
         
+        self.augmentations = augmentations
+
     def __len__(self):
         return self.states.shape[0]
-    
+
     def __getitem__(self, idx):
-        return self.states[idx], self.actions[idx]
+        states, actions = self.states[idx], self.actions[idx]
+        
+        # Apply augmentations if specified
+        if self.augmentations:
+            states, actions = self.augmentations(states, actions)
+        
+        return states, actions
+
+# Example augmentation function
+def flip_augmentation(states, actions):
+    """
+    Example augmentation function for the TrajectoryDataset.
+    Args:
+        states (Tensor): Tensor of shape (T, 2, 64, 64).
+        actions (Tensor): Tensor of shape (T-1, 2).
+    
+    Returns:
+        Tuple[Tensor, Tensor]: Augmented states and actions.
+    """
+    # Random horizontal flip
+    if random.random() > 0.5:
+        states = torch.flip(states, dims=[-1])  # Flip along the width
+        actions[:, 0] = -actions[:, 0]  # Invert x-axis action
+
+    # Random vertical flip
+    if random.random() > 0.5:
+        states = torch.flip(states, dims=[-2])  # Flip along the height
+        actions[:, 1] = -actions[:, 1]  # Invert y-axis action
 
 #########################
 # Model Components
