@@ -113,30 +113,9 @@ class ProbingEvaluator:
                 ################################################################################
                 # TODO: Forward pass through your model
                 init_states = batch.states[:, 0:1]  # BS, 1, C, H, W
-                pred_encs = model(states=init_states, actions=batch.actions)
+                # import code; code.interact(local=locals())
+                _, _, pred_encs = model(states=batch.states, actions=batch.actions)
                 pred_encs = pred_encs.transpose(0, 1)  # # BS, T, D --> T, BS, D
-
-                # #2. recurrent - unrolling embeddings (uncomment this section and comment out other section as needed)
-                # pred_encs = []
-
-                # #generate first embedding
-                # embedding = model(
-                #     states=batch.states[:, 0],
-                #     actions=batch.actions[:, 0],
-                #     hidden_state=None  #make sure to code for this scenario in RecurrentJEPA
-                # )
-                # pred_encs.append(embedding)
-
-                # #recurrently generate embeddings for subsequent time steps
-                # for t in range(1, batch.states.size(1)):
-                #     embedding = model(
-                #         states=batch.states[:, t],
-                #         actions=batch.actions[:, t],
-                #         hidden_state=embedding
-                #     )
-                #     pred_encs.append(embedding)
-
-                # pred_encs = torch.stack(pred_encs, dim=0)
 
                 # Make sure pred_encs has shape (T, BS, D) at this point
                 ################################################################################
@@ -148,7 +127,8 @@ class ProbingEvaluator:
 
                 losses_list = []
 
-                target = getattr(batch, "locations").cuda()
+                # target = getattr(batch, "locations").cuda()
+                target = batch.locations.to(self.device)
                 target = self.normalizer.normalize_location(target)
 
                 if (
@@ -233,36 +213,16 @@ class ProbingEvaluator:
             ################################################################################
             # TODO: Forward pass through your model
             init_states = batch.states[:, 0:1]  # BS, 1 C, H, W
-            pred_encs = model(states=init_states, actions=batch.actions)
+            # pred_encs, _ = model(states=init_states, actions=batch.actions)
+            _, _, pred_encs = model(states=batch.states, actions=batch.actions)
             # # BS, T, D --> T, BS, D
             pred_encs = pred_encs.transpose(0, 1)
-
-            # #2. recurrent - unrolling embeddings (uncomment this section and comment out other section as needed)
-            # pred_encs = []
-
-            # #generate first embedding
-            # embedding = model(
-            #     states=batch.states[:, 0],
-            #     actions=batch.actions[:, 0],
-            #     hidden_state=None  #make sure to code for this scenario in RecurrentJEPA
-            # )
-            # pred_encs.append(embedding)
-
-            # #recurrently generate embeddings for subsequent time steps
-            # for t in range(1, batch.states.size(1)):
-            #     embedding = model(
-            #         states=batch.states[:, t],
-            #         actions=batch.actions[:, t],
-            #         hidden_state=embedding
-            #     )
-            #     pred_encs.append(embedding)
-
-            # pred_encs = torch.stack(pred_encs, dim=0)
 
             # Make sure pred_encs has shape (T, BS, D) at this point
             ################################################################################
 
-            target = getattr(batch, "locations").cuda()
+            # target = getattr(batch, "locations").cuda()
+            target = batch.locations.to(self.device)
             target = self.normalizer.normalize_location(target)
 
             pred_locs = torch.stack([prober(x) for x in pred_encs], dim=1)

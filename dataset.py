@@ -2,10 +2,12 @@ from typing import NamedTuple, Optional
 import torch
 import numpy as np
 
+
 class WallSample(NamedTuple):
     states: torch.Tensor
     locations: torch.Tensor
     actions: torch.Tensor
+
 
 class WallDataset:
     def __init__(
@@ -36,6 +38,7 @@ class WallDataset:
             locations = torch.empty(0).to(self.device)
 
         return WallSample(states=states, locations=locations, actions=actions)
+
 
 def create_wall_dataloader(
     data_path,

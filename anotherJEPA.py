@@ -6,6 +6,7 @@ import numpy as np
 from copy import deepcopy
 from tqdm import tqdm
 import time
+import matplotlib.pyplot as plt
 
 #########################
 # Dataset and Dataloader
@@ -41,34 +42,29 @@ class Encoder(nn.Module):
             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
             nn.GELU(),
         )
-        # After downsampling 64x64 → approximately 8x8 feature map
-        self.fc = nn.Linear(128*8*8, state_dim)
-        
+        # After downsampling 64x64 -> approximately 8x8 feature map
+        self.fc = nn.Linear(128 * 8 * 8, state_dim)
+
     def forward(self, x):
-        # x: (B, T, C, H, W) or (B, C, H, W)
-        if x.ndimension() == 5:
-            B, T, C, H, W = x.shape
-            x = x.view(B*T, C, H, W)
-            h = self.conv(x)
-            h = h.view(h.size(0), -1)
-            s = self.fc(h)
-            s = s.view(B, T, -1)
-        else:
-            h = self.conv(x)
-            h = h.view(h.size(0), -1)
-            s = self.fc(h)
+        # x: (B, C, H, W)
+        h = self.conv(x)
+        h = h.view(h.size(0), -1)  # Flatten for FC layer
+        s = self.fc(h)
         return s
+
+#########################
+# Predictor
+#########################
 
 class Predictor(nn.Module):
     def __init__(self, state_dim=128, action_dim=2, hidden_dim=128):
         super().__init__()
-        # Predictor takes s_{n-1} and u_{n-1}, outputs predicted s_n
         self.fc = nn.Sequential(
             nn.Linear(state_dim + action_dim, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, state_dim)
         )
-        
+
     def forward(self, prev_state, prev_action):
         x = torch.cat([prev_state, prev_action], dim=-1)
         return self.fc(x)
@@ -80,48 +76,57 @@ class Predictor(nn.Module):
 class JEPA(nn.Module):
     def __init__(self, state_dim=128, action_dim=2, hidden_dim=128, ema_rate=0.99):
         super().__init__()
+        self.repr_dim = state_dim
+
         # Online encoder (learned)
         self.online_encoder = Encoder(in_channels=2, state_dim=state_dim)
-        
-        # This code uses a BYOL-like EMA target encoder to stabilize training.
+
         # Target encoder (EMA copy of online encoder)
         self.target_encoder = deepcopy(self.online_encoder)
         for p in self.target_encoder.parameters():
             p.requires_grad = False
-        
+
         # Predictor
         self.predictor = Predictor(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim)
-        
+
+        # EMA update rate
         self.ema_rate = ema_rate
-        
+
     @torch.no_grad()
     def update_target_encoder(self):
+        """Update target encoder using exponential moving average (EMA)."""
         for online_params, target_params in zip(self.online_encoder.parameters(), self.target_encoder.parameters()):
             target_params.data = self.ema_rate * target_params.data + (1 - self.ema_rate) * online_params.data
-    
+
     def forward(self, states, actions):
-        # states: (B, T, 2, 64, 64)
-        # actions: (B, T-1, 2)
-        
-        # Encode states with online encoder
-        online_states = self.online_encoder(states)  # (B, T, D_s)
-        
-        # Encode states with target encoder (no grad)
-        with torch.no_grad():
-            target_states = self.target_encoder(states)  # (B, T, D_s)
-        
-        # Predict future states in embedding space
+        """
+        Args:
+            states: Tensor of shape (B, T, 2, 64, 64)
+            actions: Tensor of shape (B, T-1, 2)
+
+        Returns:
+            predicted_states: Predicted latent states (B, T-1, D)
+            target_next_states: Target latent states (B, T-1, D)
+        """
+        B, T, C, H, W = states.shape
+
+        # Predict future states in latent space
         predicted_states_list = []
-        T = online_states.shape[1]
+        target_states_list = []
+
         for t in range(1, T):
-            prev_state = online_states[:, t-1, :]   # s_{n-1}
-            prev_action = actions[:, t-1, :]        # u_{n-1}
+            prev_state = self.online_encoder(states[:, t - 1])  # (B, C, H, W)
+            curr_state = self.target_encoder(states[:, t])      # (B, C, H, W)
+
+            prev_action = actions[:, t - 1]                     # (B, 2)
             predicted_state = self.predictor(prev_state, prev_action)
+
             predicted_states_list.append(predicted_state)
-        
-        predicted_states = torch.stack(predicted_states_list, dim=1)  # (B, T-1, D_s)
-        target_next_states = target_states[:, 1:, :]                  # (B, T-1, D_s)
-        
+            target_states_list.append(curr_state)
+
+        predicted_states = torch.stack(predicted_states_list, dim=1)  # (B, T-1, D)
+        target_next_states = torch.stack(target_states_list, dim=1)   # (B, T-1, D)
+
         return predicted_states, target_next_states
 
 
@@ -145,7 +150,7 @@ if __name__ == "__main__":
     hidden_dim = 128
     
     # Load data
-    train_dataset = TrajectoryDataset("subset_states.npy", "subset_actions.npy")
+    train_dataset = TrajectoryDataset("/Volumes/PhData2/DeepLearning/train/subset_states.npy", "/Volumes/PhData2/DeepLearning/train/subset_actions.npy")
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
     
     model = JEPA(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim, ema_rate=0.99).to(device)
@@ -155,6 +160,8 @@ if __name__ == "__main__":
     optimizer = optim.AdamW(model.parameters(), lr=lr)
     criterion = nn.MSELoss()
     
+    loss_history = []
+
     model.train()
     for epoch in range(epochs):
         total_loss = 0.0
@@ -189,4 +196,18 @@ if __name__ == "__main__":
             print(f"loss {loss.item()}, dt {dt:.2f}ms, norm {norm:.4f}")
         
         avg_loss = total_loss / len(train_loader)
+        loss_history.append(avg_loss)
         print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
+
+    # Plot the loss over time
+    plt.figure()
+    plt.plot(range(1, epochs + 1), loss_history, marker='o')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Training Loss Over Time')
+    plt.grid(True)
+    plt.savefig('training_loss.png')
+    plt.show()
+
+    # Save the trained model
+    torch.save(model.state_dict(), "trained_jepa.pth")
