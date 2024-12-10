@@ -10,6 +10,7 @@ python main.py
 
 The first command trains the model.  The second runs the validation.  You have to go in and revert the data directories to run on the cloud.  I just changed them in place.
 
+`anotherJEPA5.py` is the most legible version that doesn't do batches or any of the regularization.
 
 # CSCI-GA 2572 Final Project
 
