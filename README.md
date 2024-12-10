@@ -1,3 +1,16 @@
+# INSTRUCTIONS
+
+```
+python anotherJEPA3.py
+```
+
+```
+python main.py
+```
+
+The first command trains the model.  The second runs the validation.  You have to go in and revert the data directories to run on the cloud.  I just changed them in place.
+
+
 # CSCI-GA 2572 Final Project
 
 ## Overview
