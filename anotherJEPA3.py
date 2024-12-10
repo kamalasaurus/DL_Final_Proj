@@ -197,7 +197,7 @@ if __name__ == "__main__":
     # Hyperparams
     batch_size = 32
     lr = 3e-4
-    epochs = 30
+    epochs = 10
     state_dim = 128
     action_dim = 2
     hidden_dim = 32
@@ -205,7 +205,7 @@ if __name__ == "__main__":
     final_accumulation_steps = 4    # Final number of steps to accumulate gradients
     
     # Load data
-    train_dataset = TrajectoryDataset("/Volumes/PhData2/DeepLearning/train/subset_states.npy", "/Volumes/PhData2/DeepLearning/train/subset_actions.npy")
+    train_dataset = TrajectoryDataset("/Volumes/PhData2/DeepLearning/train/states.npy", "/Volumes/PhData2/DeepLearning/train/actions.npy")
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
     
     model = JEPA(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim, ema_rate=0.99).to(device)
@@ -285,7 +285,7 @@ if __name__ == "__main__":
     plt.title('Training Loss Over Time')
     plt.grid(True)
     plt.savefig('training_loss.png')
-    plt.show()
+    # plt.show()
 
     # Save the trained model
-    torch.save(model.state_dict(), "trained_jepa.pth")
+    torch.save(model.state_dict(), "/Volumes/PhData2/DeepLearning/trained_jepa.pth")
