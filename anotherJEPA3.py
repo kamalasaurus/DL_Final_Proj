@@ -360,7 +360,7 @@ if __name__ == "__main__":
         scheduler.step()
         avg_loss = total_loss / len(train_loader)
         print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
-
+    print("finished")
     # Plot the loss over time
     plt.figure()
     plt.plot(range(1, len(loss_history) + 1), loss_history, marker='o')
