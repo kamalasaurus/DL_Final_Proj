@@ -176,7 +176,11 @@ class JEPA(nn.Module):
             prev_state = next_state
 
         predicted_states = torch.stack(predicted_states, dim=1)  # (B, T-1, D)
-        target_next_states = encoded_states[:, 1:].view(B, T-1, -1)  # (B, T-1, D)
+        
+        if T > 1:  # Training scenario
+            target_next_states = encoded_states[:, 1:].view(B, T-1, -1)  # (B, T-1, D)
+        else:  # Inference scenario
+            target_next_states = 0  # Placeholder value for inference
 
         all_states = torch.cat([initial_state.view(B, 1, -1), predicted_states], dim=1)  # Shape: (B, T, 128*8*8)
 

@@ -49,7 +49,7 @@ def load_model():
         else 'mps' if torch.backends.mps.is_available()
         else 'cpu'
     )
-    state_dict_path = "trained_recurrent_jepa.pth"
+    state_dict_path = "/scratch/fc1132/JEPA_world_model/trained_recurrent_jepa.pth"
 
     state_dim = 128
     action_dim = 2
@@ -86,4 +86,4 @@ if __name__ == "__main__":
     device = get_device()
     probe_train_ds, probe_val_ds = load_data(device)
     model = load_model()
-    evaluate_model(deviice, model, probe_train_ds, probe_val_ds)
+    evaluate_model(device, model, probe_train_ds, probe_val_ds)
