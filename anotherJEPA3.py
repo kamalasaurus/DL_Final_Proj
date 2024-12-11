@@ -84,7 +84,7 @@ def flip_and_shift_augmentation(states, actions):
     # Randomly determine shift (without breaking out of the box)
     min_shift = 5 - global_min_all
     max_shift = 59 - global_max_all
-    if min_shift is not max_shift:
+    if min_shift is not max_shift+1 or min_shift is not max_shift:
         shift = torch.randint(min_shift, max_shift + 1, size=(1,))
     else:
         shift = min_shift
