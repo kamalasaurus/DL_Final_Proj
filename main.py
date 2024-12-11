@@ -44,14 +44,26 @@ def load_data(device):
 def load_model():
     """Load or initialize the model."""
     # TODO: Replace MockModel with your trained model
-    state_dim = 128  # Ensure this matches the state_dim used during training
-    action_dim = 2
-    hidden_dim = 128  # Ensure this matches the hidden_dim used during training
-    model = JEPA(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim, ema_rate=0.99).to(device)
-    model.load_state_dict(torch.load("trained_recurrent_jepa.pth"))
-    model.eval()
-    return model
+    device = (
+        'cuda' if torch.cuda.is_available()
+        else 'mps' if torch.backends.mps.is_available()
+        else 'cpu'
+    )
+    state_dict_path = "trained_recurrent_jepa.pth"
 
+    state_dim = 128
+    action_dim = 2
+    hidden_dim = 128
+    ema_rate = 0.99
+    cnn_channels = 64
+
+    model = JEPA(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim, ema_rate=ema_rate, cnn_channels=cnn_channels).to(device)
+    state_dict = torch.load(state_dict_path, map_location=device)
+    new_state_dict = {key.replace("_orig_mod.", ""): value for key, value in state_dict.items()}
+    model.load_state_dict(new_state_dict)
+    model.eval()
+
+    return model
 
 def evaluate_model(device, model, probe_train_ds, probe_val_ds):
     evaluator = ProbingEvaluator(
