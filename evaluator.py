@@ -7,10 +7,10 @@ import torch
 import torch.nn.functional as F
 from tqdm.auto import tqdm
 import numpy as np
-from matplotlib import pyplot as plt
+#from matplotlib import pyplot as plt
 
 from schedulers import Scheduler, LRSchedule
-from models import Prober, build_mlp
+from models_v1 import Prober, build_mlp
 from configs import ConfigBase
 
 from dataset import WallDataset
