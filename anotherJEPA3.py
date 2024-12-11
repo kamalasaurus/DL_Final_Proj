@@ -23,11 +23,10 @@ class TrajectoryDataset(Dataset):
             actions_path (str): Path to the actions .npy file.
             augmentations (callable, optional): A function or transform to apply to the states and actions.
         """
-        self.states = np.load(states_path)  # shape (N, T, 2, 64, 64)
-        self.actions = np.load(actions_path) # shape (N, T-1, 2)
-        
-        self.states = torch.tensor(self.states, dtype=torch.float32)
-        self.actions = torch.tensor(self.actions, dtype=torch.float32)
+        self.states = np.load(states_path, mmap_mode='r')
+        self.actions = np.load(actions_path, mmap_mode='r')
+        # self.states = torch.tensor(self.states, dtype=torch.float32)
+        # self.actions = torch.tensor(self.actions, dtype=torch.float32)
         
         self.augmentations = augmentations
 
@@ -35,7 +34,9 @@ class TrajectoryDataset(Dataset):
         return self.states.shape[0]
 
     def __getitem__(self, idx):
-        states, actions = self.states[idx], self.actions[idx]
+        states = torch.tensor(self.states[idx], dtype=torch.float32)
+        actions = torch.tensor(self.actions[idx], dtype=torch.float32)
+        # states, actions = self.states[idx], self.actions[idx]
         
         # Apply augmentations if specified
         if self.augmentations:
