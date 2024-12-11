@@ -1,7 +1,7 @@
 from dataset import create_wall_dataloader
 from evaluator import ProbingEvaluator
 import torch
-from models import MockModel
+from models_v1 import *
 import glob
 
 
@@ -44,7 +44,12 @@ def load_data(device):
 def load_model():
     """Load or initialize the model."""
     # TODO: Replace MockModel with your trained model
-    model = MockModel()
+    state_dim = 128  # Ensure this matches the state_dim used during training
+    action_dim = 2
+    hidden_dim = 128  # Ensure this matches the hidden_dim used during training
+    model = JEPA(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim, ema_rate=0.99).to(device)
+    model.load_state_dict(torch.load("trained_recurrent_jepa.pth"))
+    model.eval()
     return model
 
 
@@ -69,4 +74,4 @@ if __name__ == "__main__":
     device = get_device()
     probe_train_ds, probe_val_ds = load_data(device)
     model = load_model()
-    evaluate_model(device, model, probe_train_ds, probe_val_ds)
+    evaluate_model(deviice, model, probe_train_ds, probe_val_ds)
