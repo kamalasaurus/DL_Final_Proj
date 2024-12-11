@@ -14,17 +14,24 @@ import matplotlib.pyplot as plt
 
 class TrajectoryDataset(Dataset):
     def __init__(self, states_path, actions_path):
-        self.states = np.load(states_path)  # shape (N, T, 2, 64, 64)
-        self.actions = np.load(actions_path) # shape (N, T-1, 2)
-        
-        self.states = torch.tensor(self.states, dtype=torch.float32)
-        self.actions = torch.tensor(self.actions, dtype=torch.float32)
-        
+        """
+        Args:
+            states_path (str): Path to the .npy file containing states.
+            actions_path (str): Path to the .npy file containing actions.
+        """
+        # Load with memory mapping to avoid loading the entire file into RAM
+        self.states = np.load(states_path, mmap_mode='r')
+        self.actions = np.load(actions_path, mmap_mode='r')
+
     def __len__(self):
+        # Return the number of trajectories
         return self.states.shape[0]
-    
+
     def __getitem__(self, idx):
-        return self.states[idx], self.actions[idx]
+        # Lazily load the requested item and convert to PyTorch tensors
+        states = torch.tensor(self.states[idx], dtype=torch.float32)
+        actions = torch.tensor(self.actions[idx], dtype=torch.float32)
+        return states, actions
 
 #########################
 # Model Components
