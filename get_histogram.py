@@ -8,7 +8,7 @@ import numpy as np
 
 
 # Load the dataset
-dataset = TrajectoryDataset('/scratch/DL24FA/train/states.npy', '/scratch/DL24FA/train/actions.npy')
+dataset = TrajectoryDataset('/scratch/DL24FA/train/states.npy', '/scratch/DL24FA/train/actions.npy', augmentations=flip_and_shift_augmentation)
 
 # Collect means for each datapoint
 wall_position_means = []
@@ -39,7 +39,7 @@ plt.title('Histogram of Wall positions')
 plt.xlabel('Wall position')
 plt.ylabel('Frequency')
 plt.tight_layout()
-plt.savefig('wall_position_histogram.png')
+plt.savefig('aug_wall_position_histogram.png')
 plt.show()
 
 plt.figure(figsize=(10, 6))
@@ -48,5 +48,5 @@ plt.title('Histogram of door positions')
 plt.xlabel('Door position')
 plt.ylabel('Frequency')
 plt.tight_layout()
-plt.savefig('door_position_histogram.png')
+plt.savefig('aug_door_position_histogram.png')
 plt.show()
