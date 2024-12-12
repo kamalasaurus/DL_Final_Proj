@@ -15,25 +15,105 @@ from typing import List
 #########################
 
 class TrajectoryDataset(Dataset):
-    def __init__(self, states_path, actions_path):
+    def __init__(self, states_path, actions_path, augmentations=True):
         """
         Args:
-            states_path (str): Path to the .npy file containing states.
-            actions_path (str): Path to the .npy file containing actions.
+            states_path (str): Path to the states .npy file.
+            actions_path (str): Path to the actions .npy file.
+            augmentations (callable, optional): A function or transform to apply to the states and actions.
         """
-        # Load with memory mapping to avoid loading the entire file into RAM
         self.states = np.load(states_path, mmap_mode='r')
         self.actions = np.load(actions_path, mmap_mode='r')
+        # self.states = torch.tensor(self.states, dtype=torch.float32)
+        # self.actions = torch.tensor(self.actions, dtype=torch.float32)
+        
+        self.augmentations = augmentations
 
     def __len__(self):
-        # Return the number of trajectories
         return self.states.shape[0]
 
     def __getitem__(self, idx):
-        # Lazily load the requested item and convert to PyTorch tensors
         states = torch.tensor(self.states[idx], dtype=torch.float32)
         actions = torch.tensor(self.actions[idx], dtype=torch.float32)
+        # states, actions = self.states[idx], self.actions[idx]
+        
+        # Apply augmentations if specified
+        if self.augmentations:
+            states, actions = self.augmentations(states, actions)
+        
         return states, actions
+
+# Example augmentation function
+def flip_and_shift_augmentation(states, actions):
+    """
+    Example augmentation function for the TrajectoryDataset.
+    Args:
+        states (Tensor): Tensor of shape (T, 2, 64, 64).
+        actions (Tensor): Tensor of shape (T-1, 2).
+    
+    Returns:
+        Tuple[Tensor, Tensor]: Augmented states and actions.
+    """
+    # Random horizontal flip
+    if random.random() > 0.5:
+        states = torch.flip(states, dims=[-1])  # Flip along the width
+        actions[:, 0] = -actions[:, 0]  # Invert x-axis action
+
+    # Random vertical flip
+    if random.random() > 0.5:
+        states = torch.flip(states, dims=[-2])  # Flip along the height
+        actions[:, 1] = -actions[:, 1]  # Invert y-axis action
+
+
+    # Check for edges of the agent
+    _, _, width_non_zeros = torch.nonzero((states[:, 0] != 0), as_tuple=True)
+    width_min = width_non_zeros.min().item()
+    width_max = width_non_zeros.max().item()
+
+    # Check for edges of the walls
+    wall_non_zeros = torch.nonzero(states[-1, 1, 0, 5:-5] != 0)
+    wall_min = wall_non_zeros.min().item()
+    wall_max = wall_non_zeros.max().item()
+
+    # Identify range of the data (lowest and highest index where it is not empty space)
+    global_min_all = min(width_min, width_max, wall_min, wall_max)
+    global_max_all = max(width_min, width_max, wall_min, wall_max)
+
+
+    # Randomly determine shift (without breaking out of the box)
+    min_shift = 5 - global_min_all
+    max_shift = 59 - global_max_all
+    if min_shift is not max_shift+1 or min_shift is not max_shift:
+        try:
+            shift = torch.randint(min_shift, max_shift + 1, size=(1,))
+        except:
+            shift = 0
+    else:
+        shift = min_shift
+
+    # print("shifting:", shift.item())
+
+    # Shift left or right
+    slice1 = states[:, :, :, 0:-shift]  # First part (before the shift)
+    slice2 = states[:, :, :, -shift:]   # Second part (after the shift)
+
+    shifted = torch.cat((slice2, slice1), dim=3)
+
+    left_edge = states[:, :, :, 0:5]
+    core = states[:, :, :, 5:-5]  # First part (before the shift)
+    right_edge = states[:, :, :, -5:]
+
+    wall_slice1 = core[:, :, :, 0:-shift]  # First part (before the shift)
+    wall_slice2 = core[:, :, :, -shift:]   # Second part (after the shift)
+
+    shifted_walls = torch.cat((left_edge, wall_slice2, wall_slice1, right_edge), dim=3)
+
+
+    states[:, 0] = shifted[:, 0]
+    states[:, 1] = shifted_walls[:, 1]
+
+    return states, actions
+
 
 #########################
 # Model Components
