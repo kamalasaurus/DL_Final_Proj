@@ -7,6 +7,7 @@ from copy import deepcopy
 from tqdm import tqdm
 import time
 from typing import List
+import random 
 
 #import matplotlib.pyplot as plt
 
@@ -56,7 +57,6 @@ def shift_augmentation(states, actions):
 
     if isinstance(shift, torch.Tensor):
         shift = shift.item()
-    print(shift)
 
     # In-place shift for the first channel (primary state)
     states[:, 0].copy_(torch.roll(states[:, 0], shifts=shift, dims=2))
@@ -394,7 +394,7 @@ if __name__ == "__main__":
     # Hyperparams
     batch_size = 8
     lr = 3e-4
-    epochs = 10
+    epochs = 1
     state_dim = 128
     action_dim = 2
     hidden_dim = 128
