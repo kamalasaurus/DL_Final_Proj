@@ -13,9 +13,11 @@ dataset = TrajectoryDataset('/scratch/DL24FA/train/states.npy', '/scratch/DL24FA
 # Collect means for each datapoint
 wall_position_means = []
 door_position_means = []
-
+print(len(dataset))
 # Iterate through the dataset
 for i in range(len(dataset)):
+    if i%1000 == 0:
+        print(i)
     states, _ = dataset[i]
     # Calculate the mean of the states tensor
     wall_non_zeros = torch.nonzero(states[-1, 1, 0, 5:-5] != 0)
