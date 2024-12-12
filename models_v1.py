@@ -15,35 +15,6 @@ import matplotlib.pyplot as plt
 # Dataset and Dataloader
 #########################
 
-class TrajectoryDataset(Dataset):
-    def __init__(self, states_path, actions_path, augmentations=flip_and_shift_augmentation):
-        """
-        Args:
-            states_path (str): Path to the states .npy file.
-            actions_path (str): Path to the actions .npy file.
-            augmentations (callable, optional): A function or transform to apply to the states and actions.
-        """
-        self.states = np.load(states_path, mmap_mode='r')
-        self.actions = np.load(actions_path, mmap_mode='r')
-        # self.states = torch.tensor(self.states, dtype=torch.float32)
-        # self.actions = torch.tensor(self.actions, dtype=torch.float32)
-        
-        self.augmentations = augmentations
-
-    def __len__(self):
-        return self.states.shape[0]
-
-    def __getitem__(self, idx):
-        states = torch.tensor(self.states[idx], dtype=torch.float32)
-        actions = torch.tensor(self.actions[idx], dtype=torch.float32)
-        # states, actions = self.states[idx], self.actions[idx]
-        
-        # Apply augmentations if specified
-        if self.augmentations:
-            states, actions = self.augmentations(states, actions)
-        
-        return states, actions
-
 # Example augmentation function
 def flip_and_shift_augmentation(states, actions):
     """
@@ -114,6 +85,35 @@ def flip_and_shift_augmentation(states, actions):
     states[:, 1] = shifted_walls[:, 1]
 
     return states, actions
+
+class TrajectoryDataset(Dataset):
+    def __init__(self, states_path, actions_path, augmentations=flip_and_shift_augmentation):
+        """
+        Args:
+            states_path (str): Path to the states .npy file.
+            actions_path (str): Path to the actions .npy file.
+            augmentations (callable, optional): A function or transform to apply to the states and actions.
+        """
+        self.states = np.load(states_path, mmap_mode='r')
+        self.actions = np.load(actions_path, mmap_mode='r')
+        # self.states = torch.tensor(self.states, dtype=torch.float32)
+        # self.actions = torch.tensor(self.actions, dtype=torch.float32)
+        
+        self.augmentations = augmentations
+
+    def __len__(self):
+        return self.states.shape[0]
+
+    def __getitem__(self, idx):
+        states = torch.tensor(self.states[idx], dtype=torch.float32)
+        actions = torch.tensor(self.actions[idx], dtype=torch.float32)
+        # states, actions = self.states[idx], self.actions[idx]
+        
+        # Apply augmentations if specified
+        if self.augmentations:
+            states, actions = self.augmentations(states, actions)
+        
+        return states, actions
 
 
 #########################
