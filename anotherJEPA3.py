@@ -29,6 +29,7 @@ class TrajectoryDataset(Dataset):
         # self.actions = torch.tensor(self.actions, dtype=torch.float32)
         
         self.augmentations = augmentations
+        self.wall_positions = []
 
     def __len__(self):
         return self.states.shape[0]
@@ -40,8 +41,8 @@ class TrajectoryDataset(Dataset):
         
         # Apply augmentations if specified
         if self.augmentations:
-            states, actions = self.augmentations(states, actions)
-        
+            states, actions, wall_pos = self.augmentations(states, actions)
+        self.wall_positions.append(wall_pos)
         return states, actions
 
 # Example augmentation function
@@ -75,6 +76,9 @@ def flip_and_shift_augmentation(states, actions):
     wall_non_zeros = torch.nonzero(states[-1, 1, 0, 5:-5] != 0)
     wall_min = wall_non_zeros.min().item()
     wall_max = wall_non_zeros.max().item()
+
+    wall_pos = int((wall_min+wall_max)/2)
+
 
     # Identify range of the data (lowest and highest index where it is not empty space)
     global_min_all = min(width_min, width_max, wall_min, wall_max)
@@ -113,7 +117,7 @@ def flip_and_shift_augmentation(states, actions):
     states[:, 0] = shifted[:, 0]
     states[:, 1] = shifted_walls[:, 1]
 
-    return states, actions
+    return states, actions, wall_pos
 
 #########################
 # Model Components
@@ -376,6 +380,15 @@ if __name__ == "__main__":
     plt.grid(True)
     plt.savefig('training_loss.png')
     # plt.show()
+
+    plt.figure(figsize=(10, 6))
+    plt.hist(train_dataset.wall_positions, bins=30, edgecolor='black')
+    plt.title('Histogram of Wall positions')
+    plt.xlabel('Wall position')
+    plt.ylabel('Frequency')
+    plt.tight_layout()
+    plt.savefig('augmented_wall_position_histogram.png')
+    plt.show()
 
     # Save the trained model
     torch.save(model.state_dict(), "./trained_jepa.pth")
