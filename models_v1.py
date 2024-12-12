@@ -9,14 +9,14 @@ import time
 from typing import List
 import random
 
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 #########################
 # Dataset and Dataloader
 #########################
 
 class TrajectoryDataset(Dataset):
-    def __init__(self, states_path, actions_path, augmentations=True):
+    def __init__(self, states_path, actions_path, augmentations=flip_and_shift_augmentation):
         """
         Args:
             states_path (str): Path to the states .npy file.
@@ -391,8 +391,8 @@ if __name__ == "__main__":
         
         accumulation_steps = max(final_accumulation_steps, initial_accumulation_steps - (initial_accumulation_steps - final_accumulation_steps) * epoch // epochs)
         for step, (states, actions) in enumerate(tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs}")):
-            print(f"Step {step+1} - After Data Loading")
-            print(torch.cuda.memory_summary(device=device))
+            #print(f"Step {step+1} - After Data Loading")
+            #print(torch.cuda.memory_summary(device=device))
 
             t0 = time.time()
             states = states.to(device)
@@ -400,13 +400,13 @@ if __name__ == "__main__":
 
             # Compute losses
             with torch.autocast(device_type=device, dtype=torch.float16):
-                print(f"Step {step+1} - Before Forward Pass")
-                print(torch.cuda.memory_summary(device=device))
+                #print(f"Step {step+1} - Before Forward Pass")
+                #print(torch.cuda.memory_summary(device=device))
             
                 predicted_states, target_states, _ = model(states, actions)
 
-                print(f"Step {step+1} - After Forward Pass")
-                print(torch.cuda.memory_summary(device=device))
+                #print(f"Step {step+1} - After Forward Pass")
+                #print(torch.cuda.memory_summary(device=device))
 
                 mse_loss = criterion(predicted_states, target_states)
 
@@ -418,13 +418,13 @@ if __name__ == "__main__":
                 contrast_loss = contrastive_loss(predicted_states, target_states)
                 loss = mse_loss + contrast_loss
 
-            print(f"Step {step+1} - Before Backward Pass")
-            print(torch.cuda.memory_summary(device=device))
+            #print(f"Step {step+1} - Before Backward Pass")
+            #print(torch.cuda.memory_summary(device=device))
 
             loss.backward()
 
-            print(f"Step {step+1} - After Backward Pass")
-            print(torch.cuda.memory_summary(device=device))
+            #print(f"Step {step+1} - After Backward Pass")
+            #print(torch.cuda.memory_summary(device=device))
 
             dt=0
             if (step + 1) % accumulation_steps == 0:
@@ -446,22 +446,20 @@ if __name__ == "__main__":
 
             total_loss += loss.item()
             loss_history.append(loss.item())
-            print(f"loss {loss.item()}, dt {dt:.2f}ms")
+            #print(f"loss {loss.item()}, dt {dt:.2f}ms")
         
         scheduler.step()
         avg_loss = total_loss / len(train_loader)
-        print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
+        #print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
 
     # Plot the loss over time
-    """
     plt.figure()
     plt.plot(range(1, len(loss_history) + 1), loss_history, marker='o')
     plt.xlabel('Iteration')
     plt.ylabel('Loss')
     plt.title('Training Loss Over Time')
     plt.grid(True)
-    plt.savefig('training_loss.png')
+    plt.savefig('/scratch/fc1132/training_loss.png')
     #plt.show()
-    """
     # Save the trained model
     torch.save(model.state_dict(), "/scratch/fc1132/trained_recurrent_jepa.pth")
