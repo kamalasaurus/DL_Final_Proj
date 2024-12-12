@@ -8,7 +8,7 @@ import numpy as np
 
 
 # Load the dataset
-dataset = TrajectoryDataset('../data/states.npy', '../data/actions.npy')
+dataset = TrajectoryDataset('/scratch/DL24FA/train/states.npy', '/scratch/DL24FA/train/actions.npy')
 
 # Collect means for each datapoint
 wall_position_means = []
