@@ -133,7 +133,6 @@ def shift_augmentation(states, actions):
 
     if isinstance(shift, torch.Tensor):
         shift = shift.item()
-    print(shift)
 
     # In-place shift for the first channel (primary state)
     states[:, 0].copy_(torch.roll(states[:, 0], shifts=shift, dims=2))
