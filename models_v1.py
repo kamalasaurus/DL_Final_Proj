@@ -421,16 +421,16 @@ if __name__ == "__main__":
 
     model.train()
     for epoch in range(epochs):
-        print(f"Epoch {epoch+1}/{epochs} - Before Epoch Start")
-        print(torch.cuda.memory_summary(device=device))
+        # print(f"Epoch {epoch+1}/{epochs} - Before Epoch Start")
+        # print(torch.cuda.memory_summary(device=device))
 
         total_loss = 0.0
         optimizer.zero_grad()
         
         accumulation_steps = max(final_accumulation_steps, initial_accumulation_steps - (initial_accumulation_steps - final_accumulation_steps) * epoch // epochs)
         for step, (states, actions) in enumerate(tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs}")):
-            print(f"Step {step+1} - After Data Loading")
-            print(torch.cuda.memory_summary(device=device))
+            # print(f"Step {step+1} - After Data Loading")
+            # print(torch.cuda.memory_summary(device=device))
 
             t0 = time.time()
             states = states.to(device)
@@ -438,13 +438,13 @@ if __name__ == "__main__":
 
             # Compute losses
             with torch.autocast(device_type=device, dtype=torch.float16):
-                print(f"Step {step+1} - Before Forward Pass")
-                print(torch.cuda.memory_summary(device=device))
+                # print(f"Step {step+1} - Before Forward Pass")
+                # print(torch.cuda.memory_summary(device=device))
             
                 predicted_states, target_states, _ = model(states, actions)
 
-                print(f"Step {step+1} - After Forward Pass")
-                print(torch.cuda.memory_summary(device=device))
+                # print(f"Step {step+1} - After Forward Pass")
+                # print(torch.cuda.memory_summary(device=device))
 
                 mse_loss = criterion(predicted_states, target_states)
 
@@ -456,13 +456,13 @@ if __name__ == "__main__":
                 contrast_loss = contrastive_loss(predicted_states, target_states)
                 loss = mse_loss + contrast_loss
 
-            print(f"Step {step+1} - Before Backward Pass")
-            print(torch.cuda.memory_summary(device=device))
+            # print(f"Step {step+1} - Before Backward Pass")
+            # print(torch.cuda.memory_summary(device=device))
 
             loss.backward()
 
-            print(f"Step {step+1} - After Backward Pass")
-            print(torch.cuda.memory_summary(device=device))
+            # print(f"Step {step+1} - After Backward Pass")
+            # print(torch.cuda.memory_summary(device=device))
 
             dt=0
             if (step + 1) % accumulation_steps == 0:
