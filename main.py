@@ -54,7 +54,17 @@ def load_model(device):
     action_dim = 2
     hidden_dim = 32  # Ensure this matches the hidden_dim used during training
     model = JEPA(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim, ema_rate=0.99).to(device)
-    model.load_state_dict(torch.load("trained_jepa.pth"))
+    state_dict = torch.load("trained_jepa.pth")
+    
+    # Remove '_orig_mod.' prefix from keys if present
+    new_state_dict = {k.replace('_orig_mod.', ''): v for k, v in state_dict.items()}
+    
+    model.load_state_dict(new_state_dict)
+    
+    # Recompile the model if using CUDA
+    if device == 'cuda':
+        model = torch.compile(model)
+    
     model.eval()
     return model
 
