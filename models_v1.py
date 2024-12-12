@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 # Dataset and Dataloader
 #########################
 
-# Example augmentation function
-def flip_and_shift_augmentation(states, actions):
+
+def shift_augmentation(states, actions):
     """
     Example augmentation function for the TrajectoryDataset.
     Args:
@@ -26,7 +26,7 @@ def flip_and_shift_augmentation(states, actions):
     Returns:
         Tuple[Tensor, Tensor]: Augmented states and actions.
     """
-    # Random horizontal flip
+
     if random.random() > 0.5:
         states = torch.flip(states, dims=[-1])  # Flip along the width
         actions[:, 0] = -actions[:, 0]  # Invert x-axis action
@@ -36,7 +36,6 @@ def flip_and_shift_augmentation(states, actions):
         states = torch.flip(states, dims=[-2])  # Flip along the height
         actions[:, 1] = -actions[:, 1]  # Invert y-axis action
 
-
     # Check for edges of the agent
     _, _, width_non_zeros = torch.nonzero((states[:, 0] != 0), as_tuple=True)
     width_min = width_non_zeros.min().item()
@@ -44,18 +43,22 @@ def flip_and_shift_augmentation(states, actions):
 
     # Check for edges of the walls
     wall_non_zeros = torch.nonzero(states[-1, 1, 0, 5:-5] != 0)
-    wall_min = wall_non_zeros.min().item()
-    wall_max = wall_non_zeros.max().item()
+    wall_min = wall_non_zeros.min().item()+5
+    wall_max = wall_non_zeros.max().item()+5
+
+    wall_pos = int((wall_min+wall_max)/2)
+
 
     # Identify range of the data (lowest and highest index where it is not empty space)
     global_min_all = min(width_min, width_max, wall_min, wall_max)
     global_max_all = max(width_min, width_max, wall_min, wall_max)
 
-
     # Randomly determine shift (without breaking out of the box)
     min_shift = 5 - global_min_all
     max_shift = 59 - global_max_all
-    if min_shift is not max_shift+1 or min_shift is not max_shift:
+    if global_min_all < 5 or global_max_all > 59:
+        shift = 0
+    elif min_shift is not max_shift+1 or min_shift is not max_shift:
         try:
             shift = torch.randint(min_shift, max_shift + 1, size=(1,))
         except:
@@ -63,31 +66,28 @@ def flip_and_shift_augmentation(states, actions):
     else:
         shift = min_shift
 
-    # print("shifting:", shift.item())
+    if isinstance(shift, torch.Tensor):
+        shift = shift.item()
 
-    # Shift left or right
-    slice1 = states[:, :, :, 0:-shift]  # First part (before the shift)
-    slice2 = states[:, :, :, -shift:]   # Second part (after the shift)
-
-    shifted = torch.cat((slice2, slice1), dim=3)
-
-    left_edge = states[:, :, :, 0:5]
-    core = states[:, :, :, 5:-5]  # First part (before the shift)
-    right_edge = states[:, :, :, -5:]
-
-    wall_slice1 = core[:, :, :, 0:-shift]  # First part (before the shift)
-    wall_slice2 = core[:, :, :, -shift:]   # Second part (after the shift)
-
-    shifted_walls = torch.cat((left_edge, wall_slice2, wall_slice1, right_edge), dim=3)
-
-
-    states[:, 0] = shifted[:, 0]
-    states[:, 1] = shifted_walls[:, 1]
-
+    # In-place shift for the first channel (primary state)
+    states[:, 0].copy_(torch.roll(states[:, 0], shifts=shift, dims=2))
+    
+    # Special handling for walls (second channel)
+    # Separate the edges and core
+    left_edge = states[:, 1, :, 0:5].clone()
+    right_edge = states[:, 1, :, -5:].clone()
+    core = states[:, 1, :, 5:-5]
+    
+    # In-place shift of the core part
+    shifted_core = torch.roll(core, shifts=shift, dims=2)
+    
+    # Reconstruct the wall channel
+    states[:, 1, :, 5:-5] = shifted_core
+    
     return states, actions
 
 class TrajectoryDataset(Dataset):
-    def __init__(self, states_path, actions_path, augmentations=flip_and_shift_augmentation):
+    def __init__(self, states_path, actions_path, augmentations=shift_augmentation):
         """
         Args:
             states_path (str): Path to the states .npy file.
@@ -355,7 +355,7 @@ if __name__ == "__main__":
     )
 
     # Hyperparams
-    batch_size = 8
+    batch_size = 32
     lr = 3e-4
     epochs = 10
     state_dim = 128
@@ -459,7 +459,7 @@ if __name__ == "__main__":
     plt.ylabel('Loss')
     plt.title('Training Loss Over Time')
     plt.grid(True)
-    plt.savefig('/scratch/fc1132/training_loss.png')
+    plt.savefig('training_loss.png')
     #plt.show()
     # Save the trained model
-    torch.save(model.state_dict(), "/scratch/fc1132/trained_recurrent_jepa.pth")
+    torch.save(model.state_dict(), "trained_recurrent_jepa.pth")
