@@ -52,7 +52,7 @@ def load_model(device):
     """Load or initialize the model."""
     state_dim = 128  # Ensure this matches the state_dim used during training
     action_dim = 2
-    hidden_dim = 128  # Ensure this matches the hidden_dim used during training
+    hidden_dim = 32  # Ensure this matches the hidden_dim used during training
     model = JEPA(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim, ema_rate=0.99).to(device)
     model.load_state_dict(torch.load("trained_jepa.pth"))
     model.eval()
