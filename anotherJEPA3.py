@@ -41,9 +41,32 @@ class TrajectoryDataset(Dataset):
         
         # Apply augmentations if specified
         if self.augmentations:
-            states, actions, wall_pos = self.augmentations(states, actions)
-        self.wall_positions.append(wall_pos)
+            states, actions = self.augmentations(states, actions)
         return states, actions
+
+def random_cropping(states, actions):
+    T, channels, height, width = states.shape
+    
+    # Random crop parameters
+    crop_height = random.randint(48, 64)  # Crop height between 48 and 64 pixels
+    crop_width = random.randint(48, 64)   # Crop width between 48 and 64 pixels
+    
+    # Randomly determine crop start coordinates
+    start_h = random.randint(0, height - crop_height)
+    start_w = random.randint(0, width - crop_width)
+    
+    # Perform random cropping
+    cropped_states = states[:, :, start_h:start_h+crop_height, start_w:start_w+crop_width]
+    
+    # Resize cropped states back to original size using interpolation
+    cropped_states = torch.nn.functional.interpolate(
+        cropped_states, 
+        size=(height, width), 
+        mode='bilinear', 
+        align_corners=False
+    )
+    
+    return cropped_states, actions
 
 # Example augmentation function
 def flip_and_shift_augmentation(states, actions):
@@ -298,7 +321,7 @@ if __name__ == "__main__":
     final_accumulation_steps = 4    # Final number of steps to accumulate gradients
     
     # Load data
-    train_dataset = TrajectoryDataset("/scratch/DL24FA/train/states.npy", "/scratch/DL24FA/train/actions.npy", augmentations=flip_and_shift_augmentation)
+    train_dataset = TrajectoryDataset("/scratch/DL24FA/train/states.npy", "/scratch/DL24FA/train/actions.npy", augmentations=random_cropping)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
     
     model = JEPA(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim, ema_rate=0.99).to(device)
