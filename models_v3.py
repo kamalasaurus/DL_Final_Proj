@@ -210,7 +210,7 @@ class Encoder(nn.Module):
 #########################
 
 class RecurrentPredictor(nn.Module):
-    def __init__(self, state_dim=256, action_dim=2, hidden_dim=256, cnn_channels=128):
+    def __init__(self, state_dim=256, action_dim=2, hidden_dim=128, cnn_channels=64):
         super().__init__()
         self.action_mlp = nn.Sequential(
             nn.Linear(action_dim, hidden_dim),
@@ -218,11 +218,11 @@ class RecurrentPredictor(nn.Module):
             nn.Linear(hidden_dim, state_dim)
         )
         self.cnn = nn.Sequential(
-            nn.Conv2d(16 * 2, cnn_channels, kernel_size=3, padding=1),
+            nn.Conv2d(16 + 16, cnn_channels, kernel_size=3, padding=1),
             nn.GELU(),
-            nn.Conv2d(cnn_channels, 64, kernel_size=3, padding=1),
-            nn.GELU(),
-            nn.Conv2d(64, 16, kernel_size=3, padding=1)
+            nn.Conv2d(cnn_channels, 16, kernel_size=3, padding=1),
+            #nn.GELU(),
+            #nn.Conv2d(64, 16, kernel_size=3, padding=1)
         )
 
     def forward(self, prev_state, action):
@@ -257,7 +257,7 @@ class RecurrentPredictor(nn.Module):
 #########################
 
 class JEPA(nn.Module):
-    def __init__(self, state_dim=256, action_dim=2, hidden_dim=256, ema_rate=0.99, cnn_channels=128):
+    def __init__(self, state_dim=128, action_dim=2, hidden_dim=128, ema_rate=0.99, cnn_channels=64):
         super().__init__()
         self.repr_dim = state_dim
 
@@ -407,19 +407,19 @@ if __name__ == "__main__":
     )
 
     # Hyperparams
-    batch_size = 64
+    batch_size = 32
     lr = 3e-4
-    epochs = 10
+    epochs = 15
     state_dim = 256
     action_dim = 2
-    hidden_dim = 256
-    cnn_channels = 128
+    hidden_dim = 128
+    cnn_channels = 64
     initial_accumulation_steps = 4  # Initial number of steps to accumulate gradients
     final_accumulation_steps = 4    # Final number of steps to accumulate gradients
     
     # Load data
     train_dataset = TrajectoryDataset("/scratch/DL24FA/train/states.npy", "/scratch/DL24FA/train/actions.npy")
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8)
     
     model = JEPA(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim, cnn_channels=cnn_channels).to(device)
     if device == 'cuda':
@@ -511,7 +511,7 @@ if __name__ == "__main__":
     plt.ylabel('Loss')
     plt.title('Training Loss Over Time')
     plt.grid(True)
-    plt.savefig('/scratch/fc1132/training_loss_I.png')
+    plt.savefig('/scratch/fc1132/JEPA_world_model/encoder_outputs/training_loss_I.png')
     #plt.show()
     # Save the trained model
-    torch.save(model.state_dict(), "/scratch/fc1132/trained_recurrent_jepa_256.pth")
+    torch.save(model.state_dict(), "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_256.pth")
