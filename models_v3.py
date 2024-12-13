@@ -511,14 +511,7 @@ if __name__ == "__main__":
     plt.ylabel('Loss')
     plt.title('Training Loss Over Time')
     plt.grid(True)
-<<<<<<< HEAD
-    plt.savefig('/scratch/fc1132/JEPA_world_model/encoder_outputs/training_loss_I_dil4.png')
-    #plt.show()
-    # Save the trained model
-    torch.save(model.state_dict(), "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_dil4.pth")
-=======
     plt.savefig('/scratch/fc1132/JEPA_world_model/plots/training_loss_I_25.png')
     #plt.show()
     # Save the trained model
     torch.save(model.state_dict(), "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_256_25.pth")
->>>>>>> 7e1446f7c04923057e00ac24a998958dd7f97db9
