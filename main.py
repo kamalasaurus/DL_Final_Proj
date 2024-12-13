@@ -49,7 +49,7 @@ def load_model():
         else 'mps' if torch.backends.mps.is_available()
         else 'cpu'
     )
-    state_dict_path = "trained_recurrent_jepa_flip_shift_nowalls_rcrop.pth"
+    state_dict_path = "trained_jepa_vit.pth"
 
     state_dim = 128
     action_dim = 2
@@ -86,4 +86,11 @@ if __name__ == "__main__":
     device = get_device()
     probe_train_ds, probe_val_ds = load_data(device)
     model = load_model()
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    
+    print(f"Total Parameters: {total_params:,}")
+    print(f"Trainable Parameters: {trainable_params:,}")
+    print(f"Non-Trainable Parameters: {total_params - trainable_params:,}")
+
     evaluate_model(device, model, probe_train_ds, probe_val_ds)
