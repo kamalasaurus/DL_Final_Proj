@@ -579,9 +579,9 @@ if __name__ == "__main__":
     final_accumulation_steps = 4    # Final number of steps to accumulate gradients
     
     # Load data
-    # augmentations = [flip_augmentation, shift_augmentation, random_cropping_augmentation]
-    # train_dataset = TrajectoryDataset("/scratch/DL24FA/train/states.npy", "/scratch/DL24FA/train/actions.npy", augmentations=augmentations)   
-    train_dataset = TrajectoryDataset("/scratch/DL24FA/train/states.npy", "/scratch/DL24FA/train/actions.npy")   
+    augmentations = [shift_augmentation]
+    train_dataset = TrajectoryDataset("/scratch/DL24FA/train/states.npy", "/scratch/DL24FA/train/actions.npy", augmentations=augmentations)   
+    # train_dataset = TrajectoryDataset("/scratch/DL24FA/train/states.npy", "/scratch/DL24FA/train/actions.npy")   
     # train_dataset = TrajectoryDataset("data/states.npy", "data/actions.npy")
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
     
