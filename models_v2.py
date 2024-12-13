@@ -453,17 +453,8 @@ class JEPA(nn.Module):
         """
         B, T, _, _, _ = states.shape 
 
-        # Encode states using Vision Transformer
-        # Output shape will be (B*T, num_patches, state_dim)
-        encoded_states = self.online_encoder(states)
-        print(f"encoded states: {encoded_states.shape}")
+        encoded_states = self.online_encoder(states) # Shape: (B*T, 128, 8, 8) or B, 128, 8, 8 at inference
         
-        # # Aggregate patches - take mean across patches to get a single state representation
-        # # Shape becomes (B, T, state_dim)
-        # encoded_states = encoded_states.view(B, T, -1, encoded_states.shape[-1])
-        # encoded_states = encoded_states.mean(dim=2)
-        # print(f"encoded states 2: {encoded_states.shape}")
-
         H,W = 8, 8 
         encoded_states = encoded_states.view(B, T, -1, H, W)  # Shape: (B, T, 128, 8, 8)
         
@@ -590,7 +581,8 @@ if __name__ == "__main__":
     # Load data
     # augmentations = [flip_augmentation, shift_augmentation, random_cropping_augmentation]
     # train_dataset = TrajectoryDataset("/scratch/DL24FA/train/states.npy", "/scratch/DL24FA/train/actions.npy", augmentations=augmentations)   
-    train_dataset = TrajectoryDataset("data/states.npy", "data/actions.npy")
+    train_dataset = TrajectoryDataset("/scratch/DL24FA/train/states.npy", "/scratch/DL24FA/train/actions.npy")   
+    # train_dataset = TrajectoryDataset("data/states.npy", "data/actions.npy")
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
     
     model = JEPA(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim, cnn_channels=cnn_channels).to(device)
