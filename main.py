@@ -49,7 +49,7 @@ def load_model():
         else 'mps' if torch.backends.mps.is_available()
         else 'cpu'
     )
-    state_dict_path = "/scratch/fc1132/JEPA_world_model/trained_recurrent_jepa.pth"
+    state_dict_path = "trained_recurrent_jepa_flip_shift_nowalls_rcrop.pth"
 
     state_dim = 128
     action_dim = 2
