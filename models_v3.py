@@ -179,11 +179,11 @@ class Encoder(nn.Module):
         self.conv = nn.Sequential(
             nn.Conv2d(in_channels, 32, kernel_size=4, stride=2, padding=1),
             nn.GELU(),
-            nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),
+            nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1, dilation=2),
             nn.GELU(),
-            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
+            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1, dilation=2),
             nn.GELU(),
-            nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
+            nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1, dilation=4),
             nn.GELU(),
         )
         # After downsampling 64x64 -> approximately 8x8 feature map
@@ -511,7 +511,7 @@ if __name__ == "__main__":
     plt.ylabel('Loss')
     plt.title('Training Loss Over Time')
     plt.grid(True)
-    plt.savefig('/scratch/fc1132/JEPA_world_model/encoder_outputs/training_loss_I.png')
+    plt.savefig('/scratch/fc1132/JEPA_world_model/encoder_outputs/training_loss_I_dil4.png')
     #plt.show()
     # Save the trained model
-    torch.save(model.state_dict(), "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_256.pth")
+    torch.save(model.state_dict(), "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_dil4.pth")
