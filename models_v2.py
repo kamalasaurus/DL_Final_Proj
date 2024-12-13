@@ -9,6 +9,7 @@ import time
 from typing import List
 import random 
 import math
+import matplotlib.pyplot as plt
 
 #import matplotlib.pyplot as plt
 
@@ -669,7 +670,6 @@ if __name__ == "__main__":
         print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
 
     # Plot the loss over time
-    """
     plt.figure()
     plt.plot(range(1, len(loss_history) + 1), loss_history, marker='o')
     plt.xlabel('Iteration')
@@ -677,7 +677,6 @@ if __name__ == "__main__":
     plt.title('Training Loss Over Time')
     plt.grid(True)
     plt.savefig('training_loss.png')
-    #plt.show()
-    """
+    # plt.show()
     # Save the trained model
     torch.save(model.state_dict(), "trained_recurrent_jepa_flip_shift_nowalls_rcrop.pth")
