@@ -49,7 +49,7 @@ def load_model():
         else 'mps' if torch.backends.mps.is_available()
         else 'cpu'
     )
-    state_dict_path = "trained_jepa_vit.pth"
+    state_dict_path = "trained_jepa_vit_flip_shift.pth"
 
     state_dim = 128
     action_dim = 2
