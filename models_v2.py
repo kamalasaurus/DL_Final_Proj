@@ -8,6 +8,7 @@ from tqdm import tqdm
 import time
 from typing import List
 import random
+import torch.nn.functional as F
 
 import matplotlib.pyplot as plt
 
@@ -214,7 +215,7 @@ class RecurrentPredictor(nn.Module):
         #     nn.Linear(hidden_dim, state_dim)
         # )
         self.cnn = nn.Sequential(
-            nn.Conv2d(state_dim + 1, cnn_channels, kernel_size=3, padding=1),
+            nn.Conv2d(2 + 1, cnn_channels, kernel_size=3, padding=1),
             nn.GELU(),
             nn.Conv2d(cnn_channels, 2, kernel_size=3, padding=1),
         )
@@ -228,20 +229,22 @@ class RecurrentPredictor(nn.Module):
             next_state: Tensor of shape (B, state_dim, H, W)
         """
         B, D, H, W = prev_state.size()
-        # print(prev_state.shape)
+        #print(prev_state.shape)
         # print(action.shape)
         
+        action_resized = F.interpolate(action, size=(H, W), mode="bilinear", align_corners=False)
+        action_resized = action_resized.to(prev_state.device) 
         # action_embedding = self.action_mlp(action)
-        # print(f'1:{action_embedding.shape}')
+        # print(f'1:{action_resized.shape}')
         # action_embedding = action_embedding.view(B, D, H, W)
         # print(f'2:{action_embedding.shape}')
         # action_embedding = action_embedding.expand(-1, -1, H, W)
         # print(f'3:{action_embedding.shape}')
         
-        x = torch.cat([prev_state, action], dim=1)  # (B, 2 * state_dim, H, W)
-        # print(f'3:{x.shape}')
+        x = torch.cat([prev_state, action_resized], dim=1)  # (B, 2 * state_dim, H, W)
+        #print(f'3:{x.shape}')
         next_state = self.cnn(x)  # (B, state_dim, H, W)
-        # print(f'4:{next_state.shape}')
+        #print(f'4:{next_state.shape}')
         
         return next_state
 
@@ -284,7 +287,7 @@ class JEPA(nn.Module):
             for t in range(T_minus_1):
                 dx, dy = actions[b, t]
                 center_x, center_y = 65 // 2, 65 // 2
-                pos_x, pos_y = center_x + int(dx), center_y + int(dy)
+                pos_x, pos_y = center_x + dx.long(), center_y + dy.long()
                 if 0 <= pos_x < 65 and 0 <= pos_y < 65:
                     action_planes[b, t, 0, pos_x, pos_y] = 1
         return action_planes
