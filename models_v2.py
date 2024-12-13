@@ -208,13 +208,13 @@ class Encoder(nn.Module):
 class RecurrentPredictor(nn.Module):
     def __init__(self, state_dim=128, action_dim=2, hidden_dim=128, cnn_channels=64):
         super().__init__()
-        self.action_mlp = nn.Sequential(
-            nn.Linear(action_dim, hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, state_dim)
-        )
+        # self.action_mlp = nn.Sequential(
+        #     nn.Linear(action_dim, hidden_dim),
+        #     nn.GELU(),
+        #     nn.Linear(hidden_dim, state_dim)
+        # )
         self.cnn = nn.Sequential(
-            nn.Conv2d(2 * 2, cnn_channels, kernel_size=3, padding=1),
+            nn.Conv2d(state_dim + 1, cnn_channels, kernel_size=3, padding=1),
             nn.GELU(),
             nn.Conv2d(cnn_channels, 2, kernel_size=3, padding=1),
         )
@@ -223,21 +223,22 @@ class RecurrentPredictor(nn.Module):
         """
         Args:
             prev_state: Tensor of shape (B, state_dim, H, W)
-            action: Tensor of shape (B, action_dim)
+            action: Tensor of shape (B, 1, 65, 65)
         Returns:
             next_state: Tensor of shape (B, state_dim, H, W)
         """
         B, D, H, W = prev_state.size()
         # print(prev_state.shape)
+        # print(action.shape)
         
-        action_embedding = self.action_mlp(action)
+        # action_embedding = self.action_mlp(action)
         # print(f'1:{action_embedding.shape}')
-        action_embedding = action_embedding.view(B, D, H, W)
+        # action_embedding = action_embedding.view(B, D, H, W)
         # print(f'2:{action_embedding.shape}')
         # action_embedding = action_embedding.expand(-1, -1, H, W)
         # print(f'3:{action_embedding.shape}')
         
-        x = torch.cat([prev_state, action_embedding], dim=1)  # (B, 2 * state_dim, H, W)
+        x = torch.cat([prev_state, action], dim=1)  # (B, 2 * state_dim, H, W)
         # print(f'3:{x.shape}')
         next_state = self.cnn(x)  # (B, state_dim, H, W)
         # print(f'4:{next_state.shape}')
@@ -415,7 +416,7 @@ if __name__ == "__main__":
     )
 
     # Hyperparams
-    batch_size = 32
+    batch_size = 8
     lr = 3e-4
     epochs = 10
     state_dim = 128
@@ -426,7 +427,7 @@ if __name__ == "__main__":
     final_accumulation_steps = 4   
     
     # Load data
-    train_dataset = TrajectoryDataset("/scratch/DL24FA/train/states.npy", "/scratch/DL24FA/train/actions.npy", shift_augmentation)
+    train_dataset = TrajectoryDataset("/scratch/DL24FA/train/states.npy", "/scratch/DL24FA/train/actions.npy")
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
     
     model = JEPA(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim, cnn_channels=cnn_channels).to(device)
@@ -517,7 +518,7 @@ if __name__ == "__main__":
     plt.ylabel('Loss')
     plt.title('Training Loss Over Time')
     plt.grid(True)
-    plt.savefig('/scratch/fc1132/training_loss.png')
+    plt.savefig('/scratch/fc1132/JEPA_world_model/training_loss_H.png')
     #plt.show()
 
-    torch.save(model.state_dict(), "/scratch/fc1132/trained_recurrent_jepa.pth")
+    torch.save(model.state_dict(), "/scratch/fc1132/trained_recurrent_jepa_actions2D.pth")
