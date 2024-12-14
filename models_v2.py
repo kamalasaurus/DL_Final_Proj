@@ -220,60 +220,16 @@ class TrajectoryDataset(Dataset):
 # Recurrent CNN Predictor
 #########################
 
-# class RecurrentPredictor(nn.Module):
-#     def __init__(self, state_dim=128, action_dim=2, hidden_dim=128, cnn_channels=64):
-#         super().__init__()
-#         self.action_mlp = nn.Sequential(
-#             nn.Linear(action_dim, hidden_dim),
-#             nn.GELU(),
-#             nn.Linear(hidden_dim, state_dim)
-#         )
-#         self.cnn = nn.Sequential(
-#             nn.Conv2d(2 * 2, cnn_channels, kernel_size=3, padding=1),
-#             nn.GELU(),
-#             nn.Conv2d(cnn_channels, 2, kernel_size=3, padding=1),
-#         )
-
-#     def forward(self, prev_state, action):
-#         """
-#         Args:
-#             prev_state: Tensor of shape (B, state_dim, H, W)
-#             action: Tensor of shape (B, action_dim)
-#         Returns:
-#             next_state: Tensor of shape (B, state_dim, H, W)
-#         """
-#         B, D, H, W = prev_state.size()
-#         # print(prev_state.shape)
-        
-#         # Pass action through MLP and reshape for spatial dimensions
-#         action_embedding = self.action_mlp(action)
-#         # print(f'1:{action_embedding.shape}')
-#         action_embedding = action_embedding.view(B, D, H, W)
-#         # print(f'2:{action_embedding.shape}')
-#         # action_embedding = action_embedding.expand(-1, -1, H, W)
-#         # print(f'3:{action_embedding.shape}')
-        
-#         # Concatenate state and action embeddings
-#         x = torch.cat([prev_state, action_embedding], dim=1)  # (B, 2 * state_dim, H, W)
-#         # print(f'3:{x.shape}')
-#         next_state = self.cnn(x)  # (B, state_dim, H, W)
-#         # print(f'4:{next_state.shape}')
-        
-#         return next_state
 class RecurrentPredictor(nn.Module):
     def __init__(self, state_dim=128, action_dim=2, hidden_dim=128, cnn_channels=64):
         super().__init__()
         self.action_mlp = nn.Sequential(
             nn.Linear(action_dim, hidden_dim),
             nn.GELU(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.GELU(),
             nn.Linear(hidden_dim, state_dim)
         )
         self.cnn = nn.Sequential(
             nn.Conv2d(2 * 2, cnn_channels, kernel_size=3, padding=1),
-            nn.GELU(),
-            nn.Conv2d(cnn_channels, cnn_channels, kernel_size=3, padding=1),
             nn.GELU(),
             nn.Conv2d(cnn_channels, 2, kernel_size=3, padding=1),
         )
@@ -287,16 +243,60 @@ class RecurrentPredictor(nn.Module):
             next_state: Tensor of shape (B, state_dim, H, W)
         """
         B, D, H, W = prev_state.size()
+        # print(prev_state.shape)
         
-        # Pass action through 3-layer MLP and reshape for spatial dimensions
+        # Pass action through MLP and reshape for spatial dimensions
         action_embedding = self.action_mlp(action)
+        # print(f'1:{action_embedding.shape}')
         action_embedding = action_embedding.view(B, D, H, W)
+        # print(f'2:{action_embedding.shape}')
+        # action_embedding = action_embedding.expand(-1, -1, H, W)
+        # print(f'3:{action_embedding.shape}')
         
         # Concatenate state and action embeddings
         x = torch.cat([prev_state, action_embedding], dim=1)  # (B, 2 * state_dim, H, W)
+        # print(f'3:{x.shape}')
         next_state = self.cnn(x)  # (B, state_dim, H, W)
+        # print(f'4:{next_state.shape}')
         
         return next_state
+# class RecurrentPredictor(nn.Module):
+#     def __init__(self, state_dim=128, action_dim=2, hidden_dim=128, cnn_channels=64):
+#         super().__init__()
+#         self.action_mlp = nn.Sequential(
+#             nn.Linear(action_dim, hidden_dim),
+#             nn.GELU(),
+#             nn.Linear(hidden_dim, hidden_dim),
+#             nn.GELU(),
+#             nn.Linear(hidden_dim, state_dim)
+#         )
+#         self.cnn = nn.Sequential(
+#             nn.Conv2d(2 * 2, cnn_channels, kernel_size=3, padding=1),
+#             nn.GELU(),
+#             nn.Conv2d(cnn_channels, cnn_channels, kernel_size=3, padding=1),
+#             nn.GELU(),
+#             nn.Conv2d(cnn_channels, 2, kernel_size=3, padding=1),
+#         )
+
+#     def forward(self, prev_state, action):
+#         """
+#         Args:
+#             prev_state: Tensor of shape (B, state_dim, H, W)
+#             action: Tensor of shape (B, action_dim)
+#         Returns:
+#             next_state: Tensor of shape (B, state_dim, H, W)
+#         """
+#         B, D, H, W = prev_state.size()
+        
+#         # Pass action through 3-layer MLP and reshape for spatial dimensions
+#         action_embedding = self.action_mlp(action)
+#         action_embedding = action_embedding.view(B, D, H, W)
+        
+#         # Concatenate state and action embeddings
+#         x = torch.cat([prev_state, action_embedding], dim=1)  # (B, 2 * state_dim, H, W)
+#         next_state = self.cnn(x)  # (B, state_dim, H, W)
+        
+#         return next_state
 
 #########################
 # ViT
