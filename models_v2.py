@@ -10,7 +10,7 @@ from typing import List
 import random 
 import math
 
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 #########################
 # Augmentations
@@ -570,7 +570,7 @@ if __name__ == "__main__":
     # Hyperparams
     batch_size = 64
     lr = 3e-4
-    epochs = 25
+    epochs = 10
     state_dim = 128
     action_dim = 2
     hidden_dim = 128
@@ -669,7 +669,6 @@ if __name__ == "__main__":
         print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
 
     # Plot the loss over time
-    """
     plt.figure()
     plt.plot(range(1, len(loss_history) + 1), loss_history, marker='o')
     plt.xlabel('Iteration')
@@ -678,6 +677,5 @@ if __name__ == "__main__":
     plt.grid(True)
     plt.savefig('training_loss.png')
     #plt.show()
-    """
     # Save the trained model
     torch.save(model.state_dict(), "trained_jepa_vit.pth")
