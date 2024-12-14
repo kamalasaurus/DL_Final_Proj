@@ -189,7 +189,7 @@ class Encoder(nn.Module):
             nn.GELU(),
         )
         # After downsampling 64x64 -> approximately 8x8 feature map
-        self.fc = nn.Linear(128 * 2 * 2, state_dim)
+        self.fc = nn.Linear(512 * 2 * 2, state_dim)
 
     def forward(self, x):
         if x.ndimension() == 5:  # (B, T, C, H, W) 

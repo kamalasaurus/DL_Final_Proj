@@ -82,9 +82,9 @@ def load_model():
         else 'mps' if torch.backends.mps.is_available()
         else 'cpu'
     )
-    state_dict_path = "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_dil4.pth"
+    state_dict_path = "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_512.pth"
 
-    state_dim = 256
+    state_dim = 512
     action_dim = 2
     hidden_dim = 128
     ema_rate = 0.99
