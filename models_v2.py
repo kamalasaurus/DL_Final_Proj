@@ -570,7 +570,7 @@ if __name__ == "__main__":
     # Hyperparams
     batch_size = 64
     lr = 3e-4
-    epochs = 10
+    epochs = 25
     state_dim = 128
     action_dim = 2
     hidden_dim = 128
@@ -680,4 +680,4 @@ if __name__ == "__main__":
     #plt.show()
     """
     # Save the trained model
-    torch.save(model.state_dict(), "trained_recurrent_jepa_flip_shift_nowalls_rcrop.pth")
+    torch.save(model.state_dict(), "trained_jepa_vit.pth")
