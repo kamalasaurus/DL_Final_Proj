@@ -356,13 +356,13 @@ class MultiHeadAttention(nn.Module):
         k = k.transpose(1, 2)
         v = v.transpose(1, 2)
         
-        # # Compute attention scores
-        # attn_scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.head_dim)
-        # attn_probs = torch.softmax(attn_scores, dim=-1)
+        # Compute attention scores
+        attn_scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.head_dim)
+        attn_probs = torch.softmax(attn_scores, dim=-1)
         
         # # Apply attention
-        # attn_output = torch.matmul(attn_probs, v)
-        attn_output = torch.F.scaled_dot_product_attention(q, k, v, is_causal=True)
+        attn_output = torch.matmul(attn_probs, v)
+        # attn_output = torch.F.scaled_dot_product_attention(q, k, v, is_causal=True)
         # Reshape and project
         attn_output = attn_output.transpose(1, 2).contiguous()
         attn_output = attn_output.view(batch_size, num_patches, embed_dim)
