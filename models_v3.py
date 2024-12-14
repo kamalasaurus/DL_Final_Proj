@@ -183,11 +183,11 @@ class Encoder(nn.Module):
             nn.GELU(),
             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1, dilation=2),
             nn.GELU(),
-            nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1, dilation=4),
+            nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
             nn.GELU(),
         )
         # After downsampling 64x64 -> approximately 8x8 feature map
-        self.fc = nn.Linear(256 * 4 * 4, state_dim)
+        self.fc = nn.Linear(256 * 2 * 2, state_dim)
 
     def forward(self, x):
         if x.ndimension() == 5:  # (B, T, C, H, W) 
@@ -196,13 +196,13 @@ class Encoder(nn.Module):
             h = self.conv(x) # B * T, 128, 8, 8
             h = h.view(h.size(0), -1)
             s = self.fc(h)
-            s = s.view(B*T,16,4,-1)
+            s = s.view(B*T,64,2,-1)
             # s = s.view(B, T, -1)  # Restore batch and sequence dims # (B,T,D)
         else:  # (B, C, H, W) 
             h = self.conv(x) #B, 128, 8, 8
             h = h.view(h.size(0), -1)  # Flatten for FC layer
             s = self.fc(h) # (B,D)
-            s = s.view(B,16,4,-1)
+            s = s.view(B,64,2,-1)
         return s
 
 #########################
@@ -218,9 +218,9 @@ class RecurrentPredictor(nn.Module):
             nn.Linear(hidden_dim, state_dim)
         )
         self.cnn = nn.Sequential(
-            nn.Conv2d(16 + 16, cnn_channels, kernel_size=3, padding=1),
+            nn.Conv2d(64 + 64, cnn_channels, kernel_size=3, padding=1),
             nn.GELU(),
-            nn.Conv2d(cnn_channels, 16, kernel_size=3, padding=1),
+            nn.Conv2d(cnn_channels, 64, kernel_size=3, padding=1),
             #nn.GELU(),
             #nn.Conv2d(64, 16, kernel_size=3, padding=1)
         )
@@ -295,7 +295,7 @@ class JEPA(nn.Module):
         B, T, _, _, _ = states.shape 
 
         encoded_states = self.online_encoder(states)  # Shape: (B*T, 128, 8, 8) or B, 128, 8, 8 at inference
-        H,W = 4, 4 
+        H,W = 2, 2 
         encoded_states = encoded_states.view(B, T, -1, H, W)  # Shape: (B, T, 128, 8, 8)
         
         initial_state = encoded_states[:, 0] # Shape: (B, 128, 8, 8)
@@ -409,7 +409,7 @@ if __name__ == "__main__":
     # Hyperparams
     batch_size = 32
     lr = 3e-4
-    epochs = 25
+    epochs = 15
     state_dim = 256
     action_dim = 2
     hidden_dim = 128
@@ -419,7 +419,7 @@ if __name__ == "__main__":
     
     # Load data
     train_dataset = TrajectoryDataset("/scratch/DL24FA/train/states.npy", "/scratch/DL24FA/train/actions.npy")
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
     
     model = JEPA(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim, cnn_channels=cnn_channels).to(device)
     if device == 'cuda':
