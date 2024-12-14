@@ -173,21 +173,23 @@ def shift_augmentation(states, actions):
 #########################
 
 class Encoder(nn.Module):
-    def __init__(self, in_channels=2, state_dim=256):
+    def __init__(self, in_channels=2, state_dim=512):
         super().__init__()
         # Simple CNN encoder
         self.conv = nn.Sequential(
             nn.Conv2d(in_channels, 32, kernel_size=4, stride=2, padding=1),
             nn.GELU(),
-            nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1, dilation=2),
+            nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),
             nn.GELU(),
-            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1, dilation=2),
+            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
             nn.GELU(),
             nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
             nn.GELU(),
+            nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1),
+            nn.GELU(),
         )
         # After downsampling 64x64 -> approximately 8x8 feature map
-        self.fc = nn.Linear(256 * 2 * 2, state_dim)
+        self.fc = nn.Linear(128 * 2 * 2, state_dim)
 
     def forward(self, x):
         if x.ndimension() == 5:  # (B, T, C, H, W) 
@@ -196,13 +198,13 @@ class Encoder(nn.Module):
             h = self.conv(x) # B * T, 128, 8, 8
             h = h.view(h.size(0), -1)
             s = self.fc(h)
-            s = s.view(B*T,64,2,-1)
+            s = s.view(B*T,128,2,-1)
             # s = s.view(B, T, -1)  # Restore batch and sequence dims # (B,T,D)
         else:  # (B, C, H, W) 
             h = self.conv(x) #B, 128, 8, 8
             h = h.view(h.size(0), -1)  # Flatten for FC layer
             s = self.fc(h) # (B,D)
-            s = s.view(B,64,2,-1)
+            s = s.view(B,128,2,-1)
         return s
 
 #########################
@@ -210,7 +212,7 @@ class Encoder(nn.Module):
 #########################
 
 class RecurrentPredictor(nn.Module):
-    def __init__(self, state_dim=256, action_dim=2, hidden_dim=128, cnn_channels=64):
+    def __init__(self, state_dim=512, action_dim=2, hidden_dim=128, cnn_channels=64):
         super().__init__()
         self.action_mlp = nn.Sequential(
             nn.Linear(action_dim, hidden_dim),
@@ -218,9 +220,9 @@ class RecurrentPredictor(nn.Module):
             nn.Linear(hidden_dim, state_dim)
         )
         self.cnn = nn.Sequential(
-            nn.Conv2d(64 + 64, cnn_channels, kernel_size=3, padding=1),
+            nn.Conv2d(128 + 128, cnn_channels, kernel_size=3, padding=1),
             nn.GELU(),
-            nn.Conv2d(cnn_channels, 64, kernel_size=3, padding=1),
+            nn.Conv2d(cnn_channels, 128, kernel_size=3, padding=1),
             #nn.GELU(),
             #nn.Conv2d(64, 16, kernel_size=3, padding=1)
         )
@@ -410,7 +412,7 @@ if __name__ == "__main__":
     batch_size = 32
     lr = 3e-4
     epochs = 15
-    state_dim = 256
+    state_dim = 512
     action_dim = 2
     hidden_dim = 128
     cnn_channels = 64
@@ -419,7 +421,7 @@ if __name__ == "__main__":
     
     # Load data
     train_dataset = TrajectoryDataset("/scratch/DL24FA/train/states.npy", "/scratch/DL24FA/train/actions.npy")
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
     
     model = JEPA(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim, cnn_channels=cnn_channels).to(device)
     if device == 'cuda':
@@ -511,7 +513,7 @@ if __name__ == "__main__":
     plt.ylabel('Loss')
     plt.title('Training Loss Over Time')
     plt.grid(True)
-    plt.savefig('/scratch/fc1132/JEPA_world_model/plots/training_loss_I_dil4.png')
+    plt.savefig('/scratch/fc1132/JEPA_world_model/plots/training_loss_Q.png')
     #plt.show()
     # Save the trained model
-    torch.save(model.state_dict(), "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_dil4.pth")
+    torch.save(model.state_dict(), "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_512.pth")
