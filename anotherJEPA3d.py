@@ -27,11 +27,61 @@ class TrajectoryDataset(Dataset):
         return self.states[idx], self.actions[idx]
 
 #########################
-# Model Components
+# Augmentation Function
 #########################
 
+def augment_actions_and_states_fixed_length(states, actions, new_len):
+    """
+    Augment trajectories by resampling their length to a fixed `new_len`.
+    Keeps the initial and final state fixed, and linearly interpolates intermediate states.
+    Then recomputes actions from these interpolated states.
+    """
+    B, T, C, H, W = states.shape
+    device = states.device
+    
+    y_coords = torch.linspace(0, H-1, H, device=device)
+    x_coords = torch.linspace(0, W-1, W, device=device)
+    X, Y = torch.meshgrid(x_coords, y_coords, indexing='xy')
+    X, Y = X.to(device), Y.to(device)
+    
+    agent_map = states[:, :, 1, :, :] 
+    agent_map = agent_map / (agent_map.sum(dim=(-1, -2), keepdim=True) + 1e-8)
+    agent_x = (agent_map * X.unsqueeze(0).unsqueeze(0)).sum(dim=(-1, -2))
+    agent_y = (agent_map * Y.unsqueeze(0).unsqueeze(0)).sum(dim=(-1, -2))
+
+    augmented_state_list = []
+    augmented_action_list = []
+    
+    sigma = 1.5
+    
+    for b in range(B):
+        start_x, start_y = agent_x[b, 0], agent_y[b, 0]
+        end_x, end_y = agent_x[b, -1], agent_y[b, -1]
+
+        interp_x = torch.linspace(start_x, end_x, new_len, device=device)
+        interp_y = torch.linspace(start_y, end_y, new_len, device=device)
+        
+        background = states[b, 0, 0, :, :].unsqueeze(0).repeat(new_len, 1, 1)
+        
+        y_grid = Y.unsqueeze(0).repeat(new_len, 1, 1)
+        x_grid = X.unsqueeze(0).repeat(new_len, 1, 1)
+        agent_stack = torch.exp(-((y_grid - interp_y.view(-1,1,1))**2 + (x_grid - interp_x.view(-1,1,1))**2)/(2*sigma*sigma))
+        agent_stack = agent_stack / (agent_stack.sum(dim=(-1,-2), keepdim=True)+1e-8)
+        
+        new_states = torch.stack([background, agent_stack], dim=1)
+        
+        new_actions = torch.stack([interp_x[1:] - interp_x[:-1], interp_y[1:] - interp_y[:-1]], dim=-1)
+        
+        augmented_state_list.append(new_states)
+        augmented_action_list.append(new_actions)
+    
+    augmented_states = torch.stack(augmented_state_list, dim=0)
+    augmented_actions = torch.stack(augmented_action_list, dim=0)
+
+    return augmented_states, augmented_actions
+
 #########################
-# Encoder
+# Model Components
 #########################
 
 class Encoder(nn.Module):
@@ -64,10 +114,6 @@ class Encoder(nn.Module):
             s = self.fc(h)
         return s
 
-#########################
-# Predictor
-#########################
-
 class Predictor(nn.Module):
     def __init__(self, state_dim=128, action_dim=2, hidden_dim=128):
         super().__init__()
@@ -81,17 +127,13 @@ class Predictor(nn.Module):
         x = torch.cat([prev_state, prev_action], dim=-1)
         return self.fc(x)
 
-#########################
-# Regularization Utilities
-#########################
-
 def variance_regularization(latents, epsilon=1e-4):
     var = torch.var(latents, dim=0)
     return torch.mean(torch.clamp(epsilon - var, min=0))
 
 def covariance_regularization(latents):
     latents = latents - latents.mean(dim=0)
-    latents = latents.view(latents.size(0), -1)  # Flatten all dimensions except the batch dimension
+    latents = latents.view(latents.size(0), -1)
     cov = torch.mm(latents.T, latents) / (latents.size(0) - 1)
     off_diag = cov - torch.diag(torch.diag(cov))
     return torch.sum(off_diag ** 2)
@@ -100,15 +142,6 @@ def normalize_latents(latents):
     return latents / (torch.norm(latents, dim=-1, keepdim=True) + 1e-8)
 
 def contrastive_loss(predicted_states, target_states, temperature=0.1):
-    """
-    Compute contrastive loss between predicted and target states.
-    Args:
-        predicted_states: Tensor of shape (B, T-1, D)
-        target_states: Tensor of shape (B, T-1, D)
-        temperature: Temperature scaling factor for contrastive loss
-    Returns:
-        loss: Contrastive loss value
-    """
     B, T_minus_1, D = predicted_states.shape
     predicted_states = predicted_states.reshape(-1, D)
     target_states = target_states.reshape(-1, D)
@@ -122,10 +155,6 @@ def contrastive_loss(predicted_states, target_states, temperature=0.1):
     labels = torch.arange(B * T_minus_1, device=predicted_states.device)
     loss = nn.CrossEntropyLoss()(logits, labels)
     return loss
-
-#########################
-# JEPA Model
-#########################
 
 class JEPA(nn.Module):
     def __init__(self, state_dim=128, action_dim=2, hidden_dim=128, ema_rate=0.99):
@@ -153,22 +182,10 @@ class JEPA(nn.Module):
             target_params.data = self.ema_rate * target_params.data + (1 - self.ema_rate) * online_params.data
 
     def forward(self, states, actions):
-        """
-        Args:
-            states: Tensor of shape (B, T, 2, 64, 64)
-            actions: Tensor of shape (B, T-1, 2)
-
-        Returns:
-            predicted_states: Predicted latent states (B, T-1, D)
-            target_next_states: Target latent states (B, T-1, D)
-            all_states: All latent states including the first online state (B, T, D)
-        """
-        # Encode all states in a batch
         online_states = self.online_encoder(states)  # (B, T, D)
         with torch.no_grad():
             target_states = self.target_encoder(states)  # (B, T, D)
 
-        # Predict future states in latent space
         predicted_states_list = []
         for t in range(1, states.shape[1]):
             prev_state = online_states[:, t - 1]  # (B, D)
@@ -182,6 +199,22 @@ class JEPA(nn.Module):
 
         return predicted_states, target_next_states, all_states
 
+#########################
+# Collate Function for Augmentation
+#########################
+
+def augmentation_collate_fn(batch):
+    states, actions = zip(*batch)
+    states = torch.stack(states, dim=0)
+    actions = torch.stack(actions, dim=0)
+
+    # Choose a random new length for augmentation
+    min_length, max_length = 5, 100
+    new_len = np.random.randint(min_length, max_length+1)
+
+    # Augment actions and states to this new length
+    states, actions = augment_actions_and_states_fixed_length(states, actions, new_len)
+    return states, actions
 
 #########################
 # Training Loop Example
@@ -201,13 +234,15 @@ if __name__ == "__main__":
     state_dim = 128
     action_dim = 2
     hidden_dim = 32
-    initial_accumulation_steps = 4  # Initial number of steps to accumulate gradients
-    final_accumulation_steps = 4    # Final number of steps to accumulate gradients
+    initial_accumulation_steps = 4
+    final_accumulation_steps = 4
     
     # Load data
     train_dataset = TrajectoryDataset("/Volumes/PhData2/DeepLearning/train/subset_states.npy", "/Volumes/PhData2/DeepLearning/train/subset_actions.npy")
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
     
+    # Initially, do not use augmentation
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+
     model = JEPA(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim, ema_rate=0.99).to(device)
     if device == 'cuda':
         model = torch.compile(model)
@@ -222,6 +257,14 @@ if __name__ == "__main__":
 
     model.train()
     for epoch in range(epochs):
+        # After the first epoch, apply augmentation half of the time
+        if epoch >= 1:
+            if np.random.rand() > 0.5:
+                train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, collate_fn=augmentation_collate_fn)
+            else:
+                # Use no augmentation
+                train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+
         total_loss = 0.0
         optimizer.zero_grad()
         
@@ -285,7 +328,6 @@ if __name__ == "__main__":
     plt.title('Training Loss Over Time')
     plt.grid(True)
     plt.savefig('training_loss.png')
-    # plt.show()
 
     # Save the trained model
     torch.save(model.state_dict(), "/Volumes/PhData2/DeepLearning/trained_jepa.pth")
