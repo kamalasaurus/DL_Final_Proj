@@ -160,11 +160,11 @@ class RecurrentPredictor(nn.Module):
     def __init__(self, state_dim=256, action_dim=2, hidden_dim=128, cnn_channels=64):
         super().__init__()
         self.action_mlp = nn.Sequential(
-            nn.Linear(action_dim, 64),
+            nn.Linear(action_dim, 128),
             nn.GELU(),
-            nn.Linear(64, 128),
-            nn.GELU(),
-            nn.Linear(128, 256)
+            nn.Linear(128, 256),
+            #nn.GELU(),
+            #nn.Linear(128, 256)
         )
         self.cnn = nn.Sequential(
             nn.Conv2d(16 + 16, cnn_channels, kernel_size=3, padding=1),
@@ -310,6 +310,28 @@ def contrastive_loss(predicted_states, target_states, temperature=0.1):
     loss = nn.CrossEntropyLoss()(logits, labels)
     return loss
 
+def scheduled_loss_weight(epoch, total_epochs, T, mode="linear"):
+    """
+    Compute loss weights for timesteps based on a schedule.
+    Args:
+        epoch (int): Current epoch.
+        total_epochs (int): Total training epochs.
+        T (int): Total number of timesteps in the sequence.
+        mode (str): Schedule mode. Options: ["linear", "exponential"].
+    Returns:
+        Tensor: Weights for each timestep.
+    """
+    if mode == "linear":
+        weight = torch.linspace(1.0, (epoch / total_epochs), T)  # Linearly increasing weights
+    elif mode == "exponential":
+        factor = epoch / total_epochs
+        weight = torch.tensor([(factor ** t) for t in range(1, T + 1)])  # Exponentially increasing weights
+    else:
+        raise ValueError(f"Unknown mode: {mode}")
+    
+    weight /= weight.sum()  # Normalize weights to sum to 1
+    return weight
+
 def build_mlp(layers_dims: List[int]):
     layers = []
     for i in range(len(layers_dims) - 2):
@@ -356,12 +378,12 @@ if __name__ == "__main__":
     )
 
     # Hyperparams
-    batch_size = 32
-    lr = 3e-4
-    epochs = 15
+    batch_size = 64
+    lr = 3e-4*2
+    epochs = 20
     state_dim = 256
     action_dim = 2
-    hidden_dim = 256
+    hidden_dim = 128
     cnn_channels = 64
     initial_accumulation_steps = 4  # Initial number of steps to accumulate gradients
     final_accumulation_steps = 4    # Final number of steps to accumulate gradients
@@ -378,7 +400,7 @@ if __name__ == "__main__":
 
     optimizer = optim.AdamW(model.parameters(), lr=lr, betas=(0.9, 0.95), eps=1e-8)
     criterion = nn.MSELoss()
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=len(train_loader) * epochs, eta_min=lr*0.1)
+    #scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=len(train_loader) * epochs, eta_min=lr*0.1)
     
     loss_history = []
 
@@ -417,7 +439,15 @@ if __name__ == "__main__":
 
                 # Add contrastive loss
                 contrast_loss = contrastive_loss(predicted_states, target_states)
-                loss = mse_loss + contrast_loss
+                
+                # Compute scheduled loss weights
+                T_minus_1 = predicted_states.size(1)
+                weights = scheduled_loss_weight(epoch, epochs, T_minus_1, mode="linear").to(device)
+            
+                # Apply scheduled loss weighting
+                weighted_mse_loss = (weights * torch.mean((predicted_states - target_states) ** 2, dim=-1)).mean()
+                
+                loss = weighted_mse_loss + contrast_loss
 
             #print(f"Step {step+1} - Before Backward Pass")
             #print(torch.cuda.memory_summary(device=device))
@@ -449,7 +479,7 @@ if __name__ == "__main__":
             loss_history.append(loss.item())
             print(f"loss {loss.item()}, dt {dt:.2f}ms")
         
-        scheduler.step()
+        #scheduler.step()
         avg_loss = total_loss / len(train_loader)
         print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
 
@@ -460,7 +490,7 @@ if __name__ == "__main__":
     plt.ylabel('Loss')
     plt.title('Training Loss Over Time')
     plt.grid(True)
-    plt.savefig('/scratch/fc1132/JEPA_world_model/plots/training_loss_W.png')
+    plt.savefig('/scratch/fc1132/JEPA_world_model/plots/training_loss_Y.png')
     #plt.show()
     # Save the trained model
-    torch.save(model.state_dict(), "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_W.pth")
+    torch.save(model.state_dict(), "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_Y.pth")
