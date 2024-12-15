@@ -398,7 +398,7 @@ if __name__ == "__main__":
 
     torch.set_float32_matmul_precision('high')
 
-    optimizer = optim.AdamW(model.parameters(), lr=lr, betas=(0.9, 0.95), eps=1e-8)
+    optimizer = optim.AdamW(model.parameters(), lr=lr, betas=(0.9, 0.99), eps=1e-8)
     criterion = nn.MSELoss()
     #scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=len(train_loader) * epochs, eta_min=lr*0.1)
     
@@ -490,7 +490,7 @@ if __name__ == "__main__":
     plt.ylabel('Loss')
     plt.title('Training Loss Over Time')
     plt.grid(True)
-    plt.savefig('/scratch/fc1132/JEPA_world_model/plots/training_loss_Y.png')
+    plt.savefig('training_loss_Y.png')
     #plt.show()
     # Save the trained model
-    torch.save(model.state_dict(), "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_Y.pth")
+    torch.save(model.state_dict(), "trained_recurrent_jepa_Y.pth")
