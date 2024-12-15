@@ -360,12 +360,12 @@ if __name__ == "__main__":
     state_dim = 256
     action_dim = 2
     hidden_dim = 128
-    cnn_channels = 64
+    cnn_channels = 128
     initial_accumulation_steps = 4  # Initial number of steps to accumulate gradients
     final_accumulation_steps = 4    # Final number of steps to accumulate gradients
     
     # Load data
-    train_dataset = TrajectoryDataset("/scratch/DL24FA/train/states.npy", "/scratch/DL24FA/train/actions.npy", augmentations=flip_h)
+    train_dataset = TrajectoryDataset("/scratch/DL24FA/train/states.npy", "/scratch/DL24FA/train/actions.npy")
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8)
     
     model = JEPA(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim, cnn_channels=cnn_channels).to(device)
@@ -458,7 +458,7 @@ if __name__ == "__main__":
     plt.ylabel('Loss')
     plt.title('Training Loss Over Time')
     plt.grid(True)
-    plt.savefig('/scratch/fc1132/JEPA_world_model/encoder_outputs/training_loss_T.png')
+    plt.savefig('/scratch/fc1132/JEPA_world_model/plots/training_loss_V.png')
     #plt.show()
     # Save the trained model
-    torch.save(model.state_dict(), "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_T.pth")
+    torch.save(model.state_dict(), "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_V.pth")
