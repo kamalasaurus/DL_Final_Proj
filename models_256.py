@@ -398,7 +398,7 @@ if __name__ == "__main__":
 
     torch.set_float32_matmul_precision('high')
 
-    optimizer = optim.AdamW(model.parameters(), lr=lr, betas=(0.9, 0.95), eps=1e-8)
+    optimizer = optim.AdamW(model.parameters(), lr=lr, betas=(0.9, 0.99), eps=1e-8)
     criterion = nn.MSELoss()
     #scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=len(train_loader) * epochs, eta_min=lr*0.1)
     
