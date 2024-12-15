@@ -8,6 +8,7 @@ from tqdm import tqdm
 import time
 from typing import List
 import random
+from torchvision.transforms import GaussianBlur
 
 import matplotlib.pyplot as plt
 
@@ -236,7 +237,8 @@ def actions_to_spatial(actions, grid_size=4):
     for b in range(B):
         heatmaps[b, 0, norm_y[b], norm_x[b]] = 1.0
 
-    heatmaps = torch.nn.functional.gaussian_blur(heatmaps, kernel_size=(3, 3), sigma=(1.0, 1.0))
+    gaussian_blur = GaussianBlur(kernel_size=(3, 3), sigma=(1.0, 1.0))
+    heatmaps = gaussian_blur(heatmaps)
 
     return heatmaps
 
@@ -247,8 +249,7 @@ class RecurrentPredictor(nn.Module):
         self.action_spatial_mlp = nn.Sequential(
             nn.Conv2d(1, hidden_dim // 2, kernel_size=3, padding=1), 
             nn.GELU(),
-            nn.Conv2d(hidden_dim // 2, 16, kernel_size=3, padding=1)  
-
+            nn.Conv2d(hidden_dim // 2, 16, kernel_size=3, padding=1)  )
         self.cnn = nn.Sequential(
             nn.Conv2d(16 + 16, cnn_channels, kernel_size=3, padding=1),
             nn.GELU(),

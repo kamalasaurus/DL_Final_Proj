@@ -1,7 +1,7 @@
 from dataset import create_wall_dataloader
 from evaluator import ProbingEvaluator
 import torch
-from models_256 import *
+from models_v4 import *
 import glob
 
 
@@ -82,7 +82,7 @@ def load_model():
         else 'mps' if torch.backends.mps.is_available()
         else 'cpu'
     )
-    state_dict_path = "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_T.pth"
+    state_dict_path = "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_U.pth"
 
     state_dim = 256
     action_dim = 2
