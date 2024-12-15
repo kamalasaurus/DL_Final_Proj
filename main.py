@@ -82,13 +82,13 @@ def load_model():
         else 'mps' if torch.backends.mps.is_available()
         else 'cpu'
     )
-    state_dict_path = "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_V.pth"
+    state_dict_path = "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_W.pth"
 
     state_dim = 256
     action_dim = 2
-    hidden_dim = 128
+    hidden_dim = 256
     ema_rate = 0.99
-    cnn_channels = 128
+    cnn_channels = 64
 
     model = JEPA(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim, ema_rate=ema_rate, cnn_channels=cnn_channels).to(device)
     state_dict = torch.load(state_dict_path, map_location=device)

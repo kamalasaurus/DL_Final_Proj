@@ -160,9 +160,11 @@ class RecurrentPredictor(nn.Module):
     def __init__(self, state_dim=256, action_dim=2, hidden_dim=128, cnn_channels=64):
         super().__init__()
         self.action_mlp = nn.Sequential(
-            nn.Linear(action_dim, hidden_dim),
+            nn.Linear(action_dim, 64),
             nn.GELU(),
-            nn.Linear(hidden_dim, state_dim)
+            nn.Linear(64, 128),
+            nn.GELU(),
+            nn.Linear(128, 256)
         )
         self.cnn = nn.Sequential(
             nn.Conv2d(16 + 16, cnn_channels, kernel_size=3, padding=1),
@@ -359,8 +361,8 @@ if __name__ == "__main__":
     epochs = 15
     state_dim = 256
     action_dim = 2
-    hidden_dim = 128
-    cnn_channels = 128
+    hidden_dim = 256
+    cnn_channels = 64
     initial_accumulation_steps = 4  # Initial number of steps to accumulate gradients
     final_accumulation_steps = 4    # Final number of steps to accumulate gradients
     
@@ -458,7 +460,7 @@ if __name__ == "__main__":
     plt.ylabel('Loss')
     plt.title('Training Loss Over Time')
     plt.grid(True)
-    plt.savefig('/scratch/fc1132/JEPA_world_model/plots/training_loss_V.png')
+    plt.savefig('/scratch/fc1132/JEPA_world_model/plots/training_loss_W.png')
     #plt.show()
     # Save the trained model
-    torch.save(model.state_dict(), "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_V.pth")
+    torch.save(model.state_dict(), "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_W.pth")
