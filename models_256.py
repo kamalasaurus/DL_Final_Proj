@@ -45,7 +45,7 @@ class TrajectoryDataset(Dataset):
         return states, actions
 
 # Example augmentation function
-def flip_and_shift_augmentation(states, actions):
+def flip_h(states, actions):
     """
     Example augmentation function for the TrajectoryDataset.
     Args:
@@ -59,59 +59,6 @@ def flip_and_shift_augmentation(states, actions):
     if random.random() > 0.5:
         states = torch.flip(states, dims=[-1])  # Flip along the width
         actions[:, 0] = -actions[:, 0]  # Invert x-axis action
-
-    # Random vertical flip
-    if random.random() > 0.5:
-        states = torch.flip(states, dims=[-2])  # Flip along the height
-        actions[:, 1] = -actions[:, 1]  # Invert y-axis action
-
-
-    # Check for edges of the agent
-    _, _, width_non_zeros = torch.nonzero((states[:, 0] != 0), as_tuple=True)
-    width_min = width_non_zeros.min().item()
-    width_max = width_non_zeros.max().item()
-
-    # Check for edges of the walls
-    wall_non_zeros = torch.nonzero(states[-1, 1, 0, 5:-5] != 0)
-    wall_min = wall_non_zeros.min().item()
-    wall_max = wall_non_zeros.max().item()
-
-    # Identify range of the data (lowest and highest index where it is not empty space)
-    global_min_all = min(width_min, width_max, wall_min, wall_max)
-    global_max_all = max(width_min, width_max, wall_min, wall_max)
-
-
-    # Randomly determine shift (without breaking out of the box)
-    min_shift = 5 - global_min_all
-    max_shift = 59 - global_max_all
-    if min_shift is not max_shift+1 or min_shift is not max_shift:
-        try:
-            shift = torch.randint(min_shift, max_shift + 1, size=(1,))
-        except:
-            shift = 0
-    else:
-        shift = min_shift
-
-    # print("shifting:", shift.item())
-
-    # Shift left or right
-    slice1 = states[:, :, :, 0:-shift]  # First part (before the shift)
-    slice2 = states[:, :, :, -shift:]   # Second part (after the shift)
-
-    shifted = torch.cat((slice2, slice1), dim=3)
-
-    left_edge = states[:, :, :, 0:5]
-    core = states[:, :, :, 5:-5]  # First part (before the shift)
-    right_edge = states[:, :, :, -5:]
-
-    wall_slice1 = core[:, :, :, 0:-shift]  # First part (before the shift)
-    wall_slice2 = core[:, :, :, -shift:]   # Second part (after the shift)
-
-    shifted_walls = torch.cat((left_edge, wall_slice2, wall_slice1, right_edge), dim=3)
-
-
-    states[:, 0] = shifted[:, 0]
-    states[:, 1] = shifted_walls[:, 1]
 
     return states, actions
 
@@ -418,7 +365,7 @@ if __name__ == "__main__":
     final_accumulation_steps = 4    # Final number of steps to accumulate gradients
     
     # Load data
-    train_dataset = TrajectoryDataset("/scratch/DL24FA/train/states.npy", "/scratch/DL24FA/train/actions.npy")
+    train_dataset = TrajectoryDataset("/scratch/DL24FA/train/states.npy", "/scratch/DL24FA/train/actions.npy", augmentations=flip_h)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8)
     
     model = JEPA(state_dim=state_dim, action_dim=action_dim, hidden_dim=hidden_dim, cnn_channels=cnn_channels).to(device)
@@ -511,7 +458,7 @@ if __name__ == "__main__":
     plt.ylabel('Loss')
     plt.title('Training Loss Over Time')
     plt.grid(True)
-    plt.savefig('/scratch/fc1132/JEPA_world_model/encoder_outputs/training_loss_I.png')
+    plt.savefig('/scratch/fc1132/JEPA_world_model/encoder_outputs/training_loss_T.png')
     #plt.show()
     # Save the trained model
-    torch.save(model.state_dict(), "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_256.pth")
+    torch.save(model.state_dict(), "/scratch/fc1132/JEPA_world_model/encoder_outputs/trained_recurrent_jepa_T.pth")
