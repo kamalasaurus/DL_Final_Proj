@@ -82,7 +82,7 @@ def load_model():
         else 'mps' if torch.backends.mps.is_available()
         else 'cpu'
     )
-    state_dict_path = "trained_recurrent_jepa_Y.pth"
+    state_dict_path = "model_weights.pth"
 
     state_dim = 256
     action_dim = 2
