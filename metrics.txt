@@ -1,0 +1,6 @@
+probe_normal val loss: 10.94
+probe_wall val loss: 13.84
+probe_wall_other val loss: 8.98
+probe_expert val loss: 25.93
+# 1799600
+# python models_256.py
