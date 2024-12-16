@@ -3,36 +3,17 @@ numpy==1.23.5
 omegaconf==2.1.2
 tqdm==4.65.0
 antlr4-python3-runtime==4.8
-Brotli @ file:///croot/brotli-split_1714483155106/work
-certifi @ file:///croot/certifi_1725551672989/work/certifi
-charset-normalizer @ file:///croot/charset-normalizer_1721748349566/work
 cycler==0.12.1
-filelock @ file:///croot/filelock_1700591183607/work
-gmpy2 @ file:///tmp/build/80754af9/gmpy2_1645438755360/work
-idna @ file:///croot/idna_1714398848350/work
-Jinja2 @ file:///croot/jinja2_1730902924303/work
 kiwisolver==1.4.7
-MarkupSafe @ file:///croot/markupsafe_1704205993651/work
 matplotlib==3.4.2
 mkl-service==2.4.0
-mkl_fft @ file:///io/mkl313/mkl_fft_1730824109137/work
-mkl_random @ file:///io/mkl313/mkl_random_1730823916628/work
-mpmath @ file:///croot/mpmath_1690848262763/work
-networkx @ file:///croot/networkx_1717597493534/work
 numpy==1.23.5
 omegaconf==2.1.2
-pillow @ file:///croot/pillow_1731594689713/work
 pyparsing==3.2.0
-PySocks @ file:///tmp/build/80754af9/pysocks_1605305812635/work
 python-dateutil==2.9.0.post0
-PyYAML @ file:///croot/pyyaml_1728657952215/work
-requests @ file:///croot/requests_1730999120400/work
 six==1.17.0
-sympy @ file:///croot/sympy_1724938189289/work
 torch==2.5.1
 torchaudio==2.5.1
 torchvision==0.20.1
 tqdm==4.65.0
 triton==3.1.0
-typing_extensions @ file:///croot/typing_extensions_1715268824938/work
-urllib3 @ file:///croot/urllib3_1727769808118/work
